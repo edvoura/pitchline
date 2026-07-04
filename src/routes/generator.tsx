@@ -54,6 +54,15 @@ function GeneratorPage() {
   );
   const lead = leads.find((l) => l.id === activeLeadId) ?? null;
 
+  // Switcher lists qualified leads plus the active one (Generate can be run
+  // from any row, including not-yet-qualified leads).
+  const switchList = useMemo(() => {
+    const base = [...qualified];
+    if (lead && !base.some((l) => l.id === lead.id)) base.unshift(lead);
+    return base;
+  }, [qualified, lead]);
+
+
   const [dir, setDir] = useState<PromptDirection>(emptyDirection);
   const [provider, setProvider] = useState<Provider>("claude");
   const [compiled, setCompiled] = useState<string | null>(null);
