@@ -172,7 +172,7 @@ function GeneratorPage() {
         subtitle={`${lead.business} · ${lead.industry} · ${lead.location}`}
         actions={
           <>
-            <LeadSwitcher current={lead.id} leads={qualified} onSelect={setActiveLead} />
+            <LeadSwitcher current={lead.id} leads={switchList} onSelect={setActiveLead} />
             <ProviderToggle value={provider} onChange={(p) => { setProvider(p); setCompiled(null); }} />
           </>
         }
