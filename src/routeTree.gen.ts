@@ -9,11 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TrackerRouteImport } from './routes/tracker'
 import { Route as PreviewRouteImport } from './routes/preview'
 import { Route as LeadsRouteImport } from './routes/leads'
 import { Route as GeneratorRouteImport } from './routes/generator'
 import { Route as IndexRouteImport } from './routes/index'
 
+const TrackerRoute = TrackerRouteImport.update({
+  id: '/tracker',
+  path: '/tracker',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PreviewRoute = PreviewRouteImport.update({
   id: '/preview',
   path: '/preview',
@@ -40,12 +46,14 @@ export interface FileRoutesByFullPath {
   '/generator': typeof GeneratorRoute
   '/leads': typeof LeadsRoute
   '/preview': typeof PreviewRoute
+  '/tracker': typeof TrackerRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/generator': typeof GeneratorRoute
   '/leads': typeof LeadsRoute
   '/preview': typeof PreviewRoute
+  '/tracker': typeof TrackerRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,14 @@ export interface FileRoutesById {
   '/generator': typeof GeneratorRoute
   '/leads': typeof LeadsRoute
   '/preview': typeof PreviewRoute
+  '/tracker': typeof TrackerRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/generator' | '/leads' | '/preview'
+  fullPaths: '/' | '/generator' | '/leads' | '/preview' | '/tracker'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/generator' | '/leads' | '/preview'
-  id: '__root__' | '/' | '/generator' | '/leads' | '/preview'
+  to: '/' | '/generator' | '/leads' | '/preview' | '/tracker'
+  id: '__root__' | '/' | '/generator' | '/leads' | '/preview' | '/tracker'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,10 +76,18 @@ export interface RootRouteChildren {
   GeneratorRoute: typeof GeneratorRoute
   LeadsRoute: typeof LeadsRoute
   PreviewRoute: typeof PreviewRoute
+  TrackerRoute: typeof TrackerRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tracker': {
+      id: '/tracker'
+      path: '/tracker'
+      fullPath: '/tracker'
+      preLoaderRoute: typeof TrackerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/preview': {
       id: '/preview'
       path: '/preview'
@@ -107,6 +124,7 @@ const rootRouteChildren: RootRouteChildren = {
   GeneratorRoute: GeneratorRoute,
   LeadsRoute: LeadsRoute,
   PreviewRoute: PreviewRoute,
+  TrackerRoute: TrackerRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

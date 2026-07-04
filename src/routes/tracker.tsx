@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { ExternalLink, CalendarPlus, LayoutList, Columns3 } from "lucide-react";
 import { PageHeader } from "@/components/pitchline/PageHeader";
-import { StatusBadge } from "@/components/pitchline/StatusBadge";
 import { usePitchline } from "@/lib/pitchline/store";
 import { STAGES, type Stage } from "@/lib/pitchline/types";
 import { cn } from "@/lib/utils";
