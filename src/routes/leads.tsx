@@ -134,7 +134,7 @@ function LeadsPage() {
 
       {/* table */}
       <div className="px-6 py-4">
-        <div className="overflow-hidden rounded-lg border border-border">
+        <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-surface text-left text-xs uppercase tracking-wider text-muted-foreground">
