@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrackerRouteImport } from './routes/tracker'
+import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as PreviewRouteImport } from './routes/preview'
 import { Route as LeadsRouteImport } from './routes/leads'
 import { Route as GeneratorRouteImport } from './routes/generator'
@@ -18,6 +19,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const TrackerRoute = TrackerRouteImport.update({
   id: '/tracker',
   path: '/tracker',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TemplatesRoute = TemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PreviewRoute = PreviewRouteImport.update({
@@ -46,6 +52,7 @@ export interface FileRoutesByFullPath {
   '/generator': typeof GeneratorRoute
   '/leads': typeof LeadsRoute
   '/preview': typeof PreviewRoute
+  '/templates': typeof TemplatesRoute
   '/tracker': typeof TrackerRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/generator': typeof GeneratorRoute
   '/leads': typeof LeadsRoute
   '/preview': typeof PreviewRoute
+  '/templates': typeof TemplatesRoute
   '/tracker': typeof TrackerRoute
 }
 export interface FileRoutesById {
@@ -61,14 +69,28 @@ export interface FileRoutesById {
   '/generator': typeof GeneratorRoute
   '/leads': typeof LeadsRoute
   '/preview': typeof PreviewRoute
+  '/templates': typeof TemplatesRoute
   '/tracker': typeof TrackerRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/generator' | '/leads' | '/preview' | '/tracker'
+  fullPaths:
+    | '/'
+    | '/generator'
+    | '/leads'
+    | '/preview'
+    | '/templates'
+    | '/tracker'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/generator' | '/leads' | '/preview' | '/tracker'
-  id: '__root__' | '/' | '/generator' | '/leads' | '/preview' | '/tracker'
+  to: '/' | '/generator' | '/leads' | '/preview' | '/templates' | '/tracker'
+  id:
+    | '__root__'
+    | '/'
+    | '/generator'
+    | '/leads'
+    | '/preview'
+    | '/templates'
+    | '/tracker'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -76,6 +98,7 @@ export interface RootRouteChildren {
   GeneratorRoute: typeof GeneratorRoute
   LeadsRoute: typeof LeadsRoute
   PreviewRoute: typeof PreviewRoute
+  TemplatesRoute: typeof TemplatesRoute
   TrackerRoute: typeof TrackerRoute
 }
 
@@ -86,6 +109,13 @@ declare module '@tanstack/react-router' {
       path: '/tracker'
       fullPath: '/tracker'
       preLoaderRoute: typeof TrackerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/templates': {
+      id: '/templates'
+      path: '/templates'
+      fullPath: '/templates'
+      preLoaderRoute: typeof TemplatesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/preview': {
@@ -124,6 +154,7 @@ const rootRouteChildren: RootRouteChildren = {
   GeneratorRoute: GeneratorRoute,
   LeadsRoute: LeadsRoute,
   PreviewRoute: PreviewRoute,
+  TemplatesRoute: TemplatesRoute,
   TrackerRoute: TrackerRoute,
 }
 export const routeTree = rootRouteImport
