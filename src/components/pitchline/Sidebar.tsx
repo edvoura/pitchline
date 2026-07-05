@@ -6,9 +6,12 @@ import {
   KanbanSquare,
   Bookmark,
   Zap,
+  Search,
+  Keyboard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePitchline } from "@/lib/pitchline/store";
+import { useUI } from "@/lib/pitchline/ui";
 
 const NAV = [
   { to: "/leads", label: "Leads", icon: LayoutList, key: "1" },
@@ -21,6 +24,7 @@ const NAV = [
 export function Sidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { leads } = usePitchline();
+  const { setCommandOpen, setHelpOpen } = useUI();
 
   const counts = {
     "/leads": leads.filter((l) => l.qualification === "pending").length,
@@ -74,6 +78,29 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      <div className="space-y-1 px-3 py-2">
+        <button
+          onClick={() => setCommandOpen(true)}
+          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+        >
+          <Search className="h-4 w-4 shrink-0" />
+          <span className="flex-1 truncate text-left">Command</span>
+          <span className="mono rounded border border-border px-1 text-[10px] text-muted-foreground/60">
+            ⌘K
+          </span>
+        </button>
+        <button
+          onClick={() => setHelpOpen(true)}
+          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+        >
+          <Keyboard className="h-4 w-4 shrink-0" />
+          <span className="flex-1 truncate text-left">Shortcuts</span>
+          <span className="mono rounded border border-border px-1 text-[10px] text-muted-foreground/60">
+            ?
+          </span>
+        </button>
+      </div>
 
       <div className="border-t border-sidebar-border px-5 py-3">
         <div className="text-xs font-medium text-foreground">Trendtactics Digital</div>

@@ -12,7 +12,10 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { PitchlineProvider } from "../lib/pitchline/store";
+import { UIProvider } from "../lib/pitchline/ui";
 import { Sidebar } from "../components/pitchline/Sidebar";
+import { GlobalShortcuts } from "../components/pitchline/GlobalShortcuts";
+import { Toaster } from "../components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -132,12 +135,16 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <PitchlineProvider>
-        <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
-          <Sidebar />
-          <main className="flex-1 overflow-y-auto">
-            <Outlet />
-          </main>
-        </div>
+        <UIProvider>
+          <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
+            <Sidebar />
+            <main className="flex-1 overflow-y-auto">
+              <Outlet />
+            </main>
+          </div>
+          <GlobalShortcuts />
+          <Toaster />
+        </UIProvider>
       </PitchlineProvider>
     </QueryClientProvider>
   );

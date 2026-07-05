@@ -29,6 +29,9 @@ interface PitchlineState {
 
 interface PitchlineContextValue extends PitchlineState {
   setActiveLead: (id: string | null) => void;
+  addLeads: (leads: Lead[]) => void;
+  addLead: (lead: Lead) => void;
+  deleteLead: (id: string) => void;
   updateLead: (id: string, patch: Partial<Lead>) => void;
   setQualification: (ids: string[], q: Qualification) => void;
   setStage: (id: string, stage: Stage) => void;
@@ -86,6 +89,23 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
 
   const setActiveLead = useCallback((id: string | null) => {
     setState((s) => ({ ...s, activeLeadId: id }));
+  }, []);
+
+  const addLeads = useCallback((leads: Lead[]) => {
+    if (!leads.length) return;
+    setState((s) => ({ ...s, leads: [...leads, ...s.leads] }));
+  }, []);
+
+  const addLead = useCallback((lead: Lead) => {
+    setState((s) => ({ ...s, leads: [lead, ...s.leads] }));
+  }, []);
+
+  const deleteLead = useCallback((id: string) => {
+    setState((s) => ({
+      ...s,
+      leads: s.leads.filter((l) => l.id !== id),
+      activeLeadId: s.activeLeadId === id ? null : s.activeLeadId,
+    }));
   }, []);
 
   const updateLead = useCallback((id: string, patch: Partial<Lead>) => {
@@ -227,6 +247,9 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
     () => ({
       ...state,
       setActiveLead,
+      addLeads,
+      addLead,
+      deleteLead,
       updateLead,
       setQualification,
       setStage,
@@ -241,6 +264,9 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
     [
       state,
       setActiveLead,
+      addLeads,
+      addLead,
+      deleteLead,
       updateLead,
       setQualification,
       setStage,

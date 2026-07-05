@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   X,
@@ -9,12 +9,18 @@ import {
   MailX,
   Mail,
   Search,
+  Upload,
+  Plus,
+  Download,
 } from "lucide-react";
 import { PageHeader } from "@/components/pitchline/PageHeader";
 import { StatusBadge } from "@/components/pitchline/StatusBadge";
 import { usePitchline } from "@/lib/pitchline/store";
+import { useUI } from "@/lib/pitchline/ui";
+import { leadsToCsv, downloadCsv } from "@/lib/pitchline/csv";
 import type { Lead, Qualification } from "@/lib/pitchline/types";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/leads")({
   head: () => ({ meta: [{ title: "Leads — Pitchline" }] }),
@@ -37,6 +43,7 @@ function EmailFlag({ status }: { status: Lead["emailStatus"] }) {
 
 function LeadsPage() {
   const { leads, setQualification, setActiveLead } = usePitchline();
+  const { setImportOpen, setAddOpen, commandOpen, helpOpen, importOpen, addOpen } = useUI();
   const navigate = useNavigate();
 
   const [q, setQ] = useState("");
@@ -44,6 +51,8 @@ function LeadsPage() {
   const [location, setLocation] = useState("all");
   const [qual, setQual] = useState("all");
   const [selected, setSelected] = useState<string[]>([]);
+  const [cursor, setCursor] = useState(0);
+  const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
 
   const industries = useMemo(
     () => Array.from(new Set(leads.map((l) => l.industry))).sort(),
@@ -84,21 +93,95 @@ function LeadsPage() {
     navigate({ to: "/generator" });
   };
 
+  const exportCsv = () => {
+    const rows = filtered.length ? filtered : leads;
+    downloadCsv(`pitchline-leads-${new Date().toISOString().slice(0, 10)}.csv`, leadsToCsv(rows));
+    toast.success(`Exported ${rows.length} leads`);
+  };
+
+  // Keep the row cursor within bounds when the filtered list changes.
+  useEffect(() => {
+    setCursor((c) => Math.min(c, Math.max(0, filtered.length - 1)));
+  }, [filtered.length]);
+
+  // Row-level keyboard shortcuts: j/k to move, q/x to qualify/reject, Enter to generate.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (
+        t &&
+        (t.tagName === "INPUT" ||
+          t.tagName === "TEXTAREA" ||
+          t.tagName === "SELECT" ||
+          t.isContentEditable)
+      )
+        return;
+      if (commandOpen || helpOpen || importOpen || addOpen) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!filtered.length) return;
+
+      const key = e.key.toLowerCase();
+      const current = filtered[Math.min(cursor, filtered.length - 1)];
+
+      if (key === "j" || e.key === "ArrowDown") {
+        e.preventDefault();
+        setCursor((c) => {
+          const next = Math.min(c + 1, filtered.length - 1);
+          rowRefs.current[filtered[next]?.id]?.scrollIntoView({ block: "nearest" });
+          return next;
+        });
+      } else if (key === "k" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setCursor((c) => {
+          const next = Math.max(c - 1, 0);
+          rowRefs.current[filtered[next]?.id]?.scrollIntoView({ block: "nearest" });
+          return next;
+        });
+      } else if (key === "q" && current) {
+        e.preventDefault();
+        setQualification([current.id], "qualified");
+      } else if (key === "x" && current) {
+        e.preventDefault();
+        setQualification([current.id], "rejected");
+      } else if (e.key === "Enter" && current) {
+        e.preventDefault();
+        generate(current.id);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, cursor, commandOpen, helpOpen, importOpen, addOpen]);
+
   return (
     <div className="animate-fade-in">
       <PageHeader
         title="Leads"
         subtitle={`${filtered.length} of ${leads.length} scraped businesses`}
+        actions={
+          <>
+            <HeaderBtn onClick={() => setImportOpen(true)} icon={Upload} label="Import" />
+            <HeaderBtn onClick={exportCsv} icon={Download} label="Export" />
+            <button
+              onClick={() => setAddOpen(true)}
+              className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add lead
+            </button>
+          </>
+        }
       />
+
 
       {/* filters */}
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-6 py-3">
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
+            id="leads-search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search leads…"
+            placeholder="Search leads…  (press /)"
             className="h-8 w-56 rounded-md border border-input bg-input pl-8 pr-3 text-sm outline-none placeholder:text-muted-foreground focus:border-ring"
           />
         </div>
@@ -158,12 +241,17 @@ function LeadsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((l) => (
+              {filtered.map((l, i) => (
                 <tr
                   key={l.id}
+                  ref={(el) => {
+                    rowRefs.current[l.id] = el;
+                  }}
+                  onClick={() => setCursor(i)}
                   className={cn(
                     "border-b border-border/60 transition-colors last:border-0 hover:bg-surface/60",
                     selected.includes(l.id) && "bg-surface/80",
+                    i === cursor && "bg-accent/40 ring-1 ring-inset ring-primary/40",
                   )}
                 >
                   <td className="px-3 py-2.5">
@@ -243,6 +331,25 @@ function LeadsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function HeaderBtn({
+  onClick,
+  icon: Icon,
+  label,
+}: {
+  onClick: () => void;
+  icon: typeof Upload;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-primary/50 hover:text-foreground"
+    >
+      <Icon className="h-3.5 w-3.5" /> {label}
+    </button>
   );
 }
 
