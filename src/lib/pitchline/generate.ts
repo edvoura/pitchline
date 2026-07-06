@@ -5,28 +5,67 @@ import type { Lead, PromptDirection, Provider } from "./types";
  * Returns a deterministic, copy-pasteable block.
  */
 export function compilePrompt(lead: Lead, d: PromptDirection): string {
-  const sections = d.sections.length ? d.sections.join(", ") : "Hero, CTA";
-  const goal = `Create a high-converting website for a ${lead.industry} business located in ${lead.location}, optimizing for the primary call-to-action: "${d.ctaFocus || "Book / Contact"}".`;
+  const ind = (lead.industry || "").toLowerCase();
+
+  // Industry-guided defaults (Option 2) if operator leaves fields blank
+  let defaultMood = "bold";
+  let defaultLayout = "grid / contained";
+  let defaultTypography = "clean sans-serif";
+  let defaultColor = "monochrome + single accent";
+  let defaultAnimation = "subtle";
+
+  if (ind.includes("dent") || ind.includes("health") || ind.includes("medic") || ind.includes("clinic")) {
+    defaultMood = "corporate / trust";
+    defaultTypography = "sans-serif, high legibility";
+    defaultColor = "clean white + blue accent";
+  } else if (ind.includes("rest") || ind.includes("cafe") || ind.includes("food") || ind.includes("bake")) {
+    defaultMood = "warm / luxury";
+    defaultTypography = "editorial serif";
+    defaultLayout = "asymmetric / full-bleed";
+    defaultColor = "earthy natural";
+  } else if (ind.includes("saas") || ind.includes("tech") || ind.includes("soft") || ind.includes("app")) {
+    defaultMood = "minimal / futuristic";
+    defaultTypography = "mono-accented technical";
+    defaultColor = "high-contrast dark";
+    defaultAnimation = "expressive";
+  } else if (ind.includes("well") || ind.includes("spa") || ind.includes("yoga") || ind.includes("care")) {
+    defaultMood = "minimal / calm";
+    defaultTypography = "humanist warm";
+    defaultLayout = "asymmetric / contained";
+    defaultColor = "warm neutrals";
+  }
+
+  const mood = d.mood || defaultMood;
+  const layout = d.layoutStyle || defaultLayout;
+  const typography = d.typography || defaultTypography;
+  const color = d.colorDirection || defaultColor;
+  const animation = d.animation || defaultAnimation;
+  const visualRef = d.visualReference || "Linear / Apple aesthetic";
+
+  const sections = d.sections.length ? d.sections.join(", ") : "Hero, Features, Social Proof, CTA, Closing";
+  const ctaFocus = d.ctaFocus || "Book / Contact";
+
+  const goal = `Create a high-converting website for a ${lead.industry} business located in ${lead.location}, optimizing for the primary call-to-action: "${ctaFocus}".`;
 
   return `BUSINESS: ${lead.business}, ${lead.industry}, ${lead.location}
 GOAL: ${goal}
-MOOD: ${d.mood || "—"}
-LAYOUT: ${d.layoutStyle || "—"}
-TYPOGRAPHY: ${d.typography || "—"}
-COLOR: ${d.colorDirection || "—"}
-ANIMATION: ${d.animation}
-VISUAL REFERENCE: ${d.visualReference || "—"}
+MOOD: ${mood}
+LAYOUT: ${layout}
+TYPOGRAPHY: ${typography}
+COLOR: ${color}
+ANIMATION: ${animation}
+VISUAL REFERENCE: ${visualRef}
 
 SECTIONS (in order):
 ${sections}
 
-CTA FOCUS: ${d.ctaFocus || "Book / Contact"}
+CTA FOCUS: ${ctaFocus}
 
 COPY DIRECTION (SNAP):
-Story: ${d.story || "—"}
-Need: ${d.need || "—"}
-Answer: ${d.answer || "—"}
-Proof: ${d.proof || "—"}`;
+Story: ${d.story || `As a visitor looking for quality ${lead.industry} in ${lead.location}, I feel understood.`}
+Need: ${d.need || `Finding reliable, top-tier ${lead.industry} services can be challenging.`}
+Answer: ${d.answer || `${lead.business} delivers exceptional quality tailored to your needs.`}
+Proof: ${d.proof || `Trusted by clients across ${lead.location} with proven results.`}`;
 }
 
 const MOOD_THEMES: Record<string, { bg: string; fg: string; accent: string; muted: string; card: string }> = {

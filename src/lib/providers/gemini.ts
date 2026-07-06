@@ -26,8 +26,11 @@ export async function generateGeminiDemo(
 
   const start = Date.now();
 
-  const systemInstruction =
-    "You are an expert web designer/developer. Output ONLY valid, raw, production-ready, self-contained HTML + CSS for the requested website. Do not include markdown code block backticks (like ```html) or conversational text before or after the code. Start directly with <!DOCTYPE html>.";
+  const systemInstruction = `You are an expert web designer/developer building a single-page website demo. Follow these rules regardless of how much detail is given below:
+- Every section must have one clear purpose (Hero: immediate clarity + hook. Features: outcome-framed, not a feature list. Social proof: trust transfer. CTA: one unambiguous action. Closing: reinforce feeling.)
+- Write copy using Story -> Need -> Answer -> Proof (SNAP framework). Never write like a marketer — write like someone who deeply understands this exact audience.
+- Respect the stated mood precisely — do not default to generic "modern clean" design if a specific mood (luxury, futuristic, dark, playful, etc.) is given.
+- Output ONLY valid, raw, production-ready, self-contained HTML + CSS for the requested website. Do not include markdown code block backticks (like \`\`\`html) or conversational text before or after the code. Start directly with <!DOCTYPE html>.`;
 
   let promptText = prompt;
   if (currentHtml) {
