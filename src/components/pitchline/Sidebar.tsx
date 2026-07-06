@@ -71,7 +71,11 @@ export function Sidebar() {
                 )}
               />
               <span className="flex-1 truncate">{item.label}</span>
-              {count ? (
+              {alert ? (
+                <span className="rounded bg-destructive/20 px-1.5 py-0.5 text-[11px] font-semibold text-destructive">
+                  {alert}
+                </span>
+              ) : count ? (
                 <span className="rounded bg-secondary px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground">
                   {count}
                 </span>
