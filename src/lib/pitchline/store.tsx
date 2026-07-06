@@ -248,14 +248,6 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
         let dbLeads = (leadsRes.data || []).map(mapLeadFromDb);
         let dbTemplates = (templatesRes.data || []).map(mapTemplateFromDb);
 
-        // Seeding database with mock data if completely empty
-        if (dbLeads.length === 0) {
-          const { data } = await supabase
-            .from("leads")
-            .insert(MOCK_LEADS.map(mapLeadToDb))
-            .select();
-          if (data) dbLeads = data.map(mapLeadFromDb);
-        }
 
         if (dbTemplates.length === 0) {
           const { data } = await supabase
