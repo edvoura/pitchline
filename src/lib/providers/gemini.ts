@@ -19,9 +19,9 @@ export async function generateGeminiDemo(
   currentHtml?: string | null,
   refinements?: string[],
 ): Promise<{ html: string; tokensUsed: number; generationMs: number }> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = (typeof process !== "undefined" ? process.env.GEMINI_API_KEY : undefined) || import.meta.env.VITE_GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not configured on the server.");
+    throw new Error("Gemini API key is not configured. Please set GEMINI_API_KEY or VITE_GEMINI_API_KEY.");
   }
 
   const start = Date.now();

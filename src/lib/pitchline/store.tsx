@@ -467,13 +467,30 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
       }));
 
       try {
-        const result = await generateDemoFn({
-          data: {
-            compiledPrompt: prompt.compiled,
-            provider: prompt.provider,
-            refinements: [],
+        let result;
+        const clientKey = prompt.provider === "claude"
+          ? import.meta.env.VITE_CLAUDE_API_KEY
+          : import.meta.env.VITE_GEMINI_API_KEY;
+
+        if (clientKey) {
+          console.log(`[Pitchline] Running client-side generation using ${prompt.provider}...`);
+          if (prompt.provider === "claude") {
+            const { generateClaudeDemo } = await import("../providers/claude");
+            result = await generateClaudeDemo(prompt.compiled, null, []);
+          } else {
+            const { generateGeminiDemo } = await import("../providers/gemini");
+            result = await generateGeminiDemo(prompt.compiled, null, []);
           }
-        });
+        } else {
+          console.log("[Pitchline] Running server-side generation...");
+          result = await generateDemoFn({
+            data: {
+              compiledPrompt: prompt.compiled,
+              provider: prompt.provider,
+              refinements: [],
+            }
+          });
+        }
 
         const newDemo: DemoRecord = {
           leadId,
@@ -535,14 +552,31 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
       const refinements = [...existing.refinements, instruction];
 
       try {
-        const result = await generateDemoFn({
-          data: {
-            compiledPrompt: prompt.compiled,
-            provider: prompt.provider,
-            refinements,
-            currentHtml: existing.html,
+        let result;
+        const clientKey = prompt.provider === "claude"
+          ? import.meta.env.VITE_CLAUDE_API_KEY
+          : import.meta.env.VITE_GEMINI_API_KEY;
+
+        if (clientKey) {
+          console.log(`[Pitchline] Running client-side refinement using ${prompt.provider}...`);
+          if (prompt.provider === "claude") {
+            const { generateClaudeDemo } = await import("../providers/claude");
+            result = await generateClaudeDemo(prompt.compiled, existing.html, refinements);
+          } else {
+            const { generateGeminiDemo } = await import("../providers/gemini");
+            result = await generateGeminiDemo(prompt.compiled, existing.html, refinements);
           }
-        });
+        } else {
+          console.log("[Pitchline] Running server-side refinement...");
+          result = await generateDemoFn({
+            data: {
+              compiledPrompt: prompt.compiled,
+              provider: prompt.provider,
+              refinements,
+              currentHtml: existing.html,
+            }
+          });
+        }
 
         const newDemo: DemoRecord = {
           ...existing,

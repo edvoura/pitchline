@@ -19,9 +19,9 @@ export async function generateClaudeDemo(
   currentHtml?: string | null,
   refinements?: string[],
 ): Promise<{ html: string; tokensUsed: number; generationMs: number }> {
-  const apiKey = process.env.CLAUDE_API_KEY;
+  const apiKey = (typeof process !== "undefined" ? process.env.CLAUDE_API_KEY : undefined) || import.meta.env.VITE_CLAUDE_API_KEY;
   if (!apiKey) {
-    throw new Error("CLAUDE_API_KEY is not configured on the server.");
+    throw new Error("Claude API key is not configured. Please set CLAUDE_API_KEY or VITE_CLAUDE_API_KEY.");
   }
 
   const start = Date.now();
