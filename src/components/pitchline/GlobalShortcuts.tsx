@@ -7,6 +7,7 @@ import { ImportLeadsDialog } from "./ImportLeadsDialog";
 import { AddLeadDialog } from "./AddLeadDialog";
 
 const NAV_KEYS: Record<string, string> = {
+  "0": "/",
   "1": "/leads",
   "2": "/generator",
   "3": "/preview",
