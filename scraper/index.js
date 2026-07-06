@@ -8,14 +8,14 @@ dotenv.config();
 const GOOGLE_PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY || process.env.PLACES_API_KEY;
 const MAILBOXLAYER_API_KEY = process.env.MAILBOXLAYER_API_KEY;
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 // Configurable scraping settings
 const SEARCH_QUERY = process.env.QUERY || "dentists in Lagos";
 const MAX_PLACES = parseInt(process.env.LIMIT || "10", 10);
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.error("Missing Supabase credentials. Ensure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set.");
+  console.error("Missing Supabase credentials. Ensure SUPABASE_URL and a valid API key are set.");
   process.exit(1);
 }
 
