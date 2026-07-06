@@ -20,6 +20,7 @@ import { STARTER_TEMPLATES } from "./mock";
 import { compilePrompt } from "./generate";
 import { supabase } from "../supabase";
 import { generateDemoFn } from "./server-fns";
+import { toast } from "sonner";
 
 interface PitchlineState {
   leads: Lead[];
@@ -513,6 +514,8 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
             ),
           };
         });
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        toast.error(`Generation Failed: ${errorMsg}`);
         console.error("Error generating demo HTML:", err);
         throw err;
       }
@@ -555,6 +558,8 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
 
         return newDemo;
       } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        toast.error(`Refinement Failed: ${errorMsg}`);
         console.error("Error refining demo HTML:", err);
         throw err;
       }
