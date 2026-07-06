@@ -1,6 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
 import { CheerioCrawler } from "crawlee";
-import fetch from "node-fetch";
 import dotenv from "dotenv";
 
 dotenv.config();
