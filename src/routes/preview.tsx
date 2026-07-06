@@ -13,6 +13,7 @@ import {
 import { PageHeader } from "@/components/pitchline/PageHeader";
 import { usePitchline } from "@/lib/pitchline/store";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/preview")({
   head: () => ({ meta: [{ title: "Demo Preview — Pitchline" }] }),
@@ -32,12 +33,16 @@ function PreviewPage() {
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const run = (fn: () => void) => {
+  const run = async (fn: () => Promise<any> | any) => {
     setBusy(true);
-    setTimeout(() => {
-      fn();
+    try {
+      await fn();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to execute AI action");
+      console.error(err);
+    } finally {
       setBusy(false);
-    }, 400);
+    }
   };
 
   const copyCode = async () => {

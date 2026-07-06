@@ -28,6 +28,9 @@ export interface Lead {
   dateSent?: string;
   notes: string;
   followUp?: string;
+  source?: "manual" | "scraper";
+  sourcePlaceId?: string | null;
+  rawScrape?: any | null;
 }
 
 export interface PromptDirection {
@@ -60,6 +63,8 @@ export interface DemoRecord {
   refinements: string[];
   createdAt: string;
   ready: boolean;
+  tokensUsed?: number | null;
+  generationMs?: number | null;
 }
 
 export interface Template {

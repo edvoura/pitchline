@@ -67,6 +67,15 @@ function GeneratorPage() {
   const [provider, setProvider] = useState<Provider>("claude");
   const [compiled, setCompiled] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [availableSections, setAvailableSections] = useState<string[]>(SECTION_OPTIONS);
+
+  // Sync availableSections if custom sections exist in loaded prompt
+  useEffect(() => {
+    if (dir.sections) {
+      const unique = Array.from(new Set([...SECTION_OPTIONS, ...dir.sections]));
+      setAvailableSections(unique);
+    }
+  }, [dir.sections]);
 
   // Load existing prompt for the active lead
   useEffect(() => {
@@ -235,7 +244,7 @@ function GeneratorPage() {
 
           <Field label="Sections to include">
             <div className="flex flex-wrap gap-2">
-              {SECTION_OPTIONS.map((s) => (
+              {availableSections.map((s) => (
                 <button
                   key={s}
                   onClick={() => toggleSection(s)}
@@ -249,6 +258,39 @@ function GeneratorPage() {
                   {s}
                 </button>
               ))}
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <input
+                id="custom-section-input"
+                placeholder="Add custom section…"
+                className="h-8 w-44 rounded-md border border-input bg-input px-2.5 text-xs outline-none focus:border-ring"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const val = e.currentTarget.value.trim();
+                    if (val && !availableSections.includes(val)) {
+                      setAvailableSections([...availableSections, val]);
+                      toggleSection(val);
+                      e.currentTarget.value = "";
+                    }
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const input = document.getElementById("custom-section-input") as HTMLInputElement | null;
+                  const val = input?.value.trim();
+                  if (val && !availableSections.includes(val)) {
+                    setAvailableSections([...availableSections, val]);
+                    toggleSection(val);
+                    if (input) input.value = "";
+                  }
+                }}
+                className="h-8 rounded-md bg-secondary px-3 text-xs font-medium text-foreground hover:bg-secondary/80"
+              >
+                Add
+              </button>
             </div>
           </Field>
 
