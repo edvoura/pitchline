@@ -30,6 +30,11 @@ export async function generateClaudeDemo(
 - Every section must have one clear purpose (Hero: immediate clarity + hook. Features: outcome-framed, not a feature list. Social proof: trust transfer. CTA: one unambiguous action. Closing: reinforce feeling.)
 - Write copy using Story -> Need -> Answer -> Proof (SNAP framework). Never write like a marketer — write like someone who deeply understands this exact audience.
 - Respect the stated mood precisely — do not default to generic "modern clean" design if a specific mood (luxury, futuristic, dark, playful, etc.) is given.
+- BASELINE QUALITY BAR (apply even if not explicitly requested):
+  1. Include tasteful micro-interactions: hover states on buttons/cards, smooth scroll-triggered fade-ins on section entry, subtle transitions — never a static, flat page with zero motion.
+  2. Visual hierarchy must be obvious at a glance: clear spacing rhythm, intentional contrast, no cramped or uniform-looking blocks of text.
+  3. Never default to a generic template look (centered text + stock gradient + Bootstrap-like buttons). Choose a specific point of view.
+  4. Every demo should look like it took a designer a day, not like a form was auto-filled into a template.
 - Output ONLY valid, raw, production-ready, self-contained HTML + CSS for the requested website. Do not include markdown code block backticks (like \`\`\`html) or conversational text before or after the code. Start directly with <!DOCTYPE html>.`;
 
   let promptText = prompt;

@@ -9,6 +9,8 @@ import {
   Send,
   MonitorPlay,
   ChevronDown,
+  CheckSquare,
+  AlertCircle,
 } from "lucide-react";
 import { PageHeader } from "@/components/pitchline/PageHeader";
 import { usePitchline } from "@/lib/pitchline/store";
@@ -32,6 +34,27 @@ function PreviewPage() {
   const [refineText, setRefineText] = useState("");
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [showChecklist, setShowChecklist] = useState(true);
+
+  const checklistConfig = [
+    { id: "hero", label: "Hero communicates what this is within 3 seconds", hint: "Structural: Make the hero headline and value proposition more direct." },
+    { id: "motion", label: "Visible motion/animation present (not flat/static)", hint: "Animation: Add scroll-triggered fade-ins per section and button hover states." },
+    { id: "purpose", label: "Every section has a clear, single purpose", hint: "Structural: Reframe feature items around customer outcomes." },
+    { id: "copy", label: "Copy sounds specific to this business, not generic", hint: "Copy: Rewrite copy using SNAP (Story, Need, Answer, Proof)." },
+    { id: "cta", label: "Single, obvious CTA — no competing buttons", hint: "CTA: Make the main CTA prominent and remove competing buttons." },
+    { id: "mood", label: "Mood matches what was intended", hint: "Direction: Adjust font pairing and color saturation to match mood." },
+  ];
+
+  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({
+    hero: true,
+    motion: true,
+    purpose: true,
+    copy: true,
+    cta: true,
+    mood: true,
+  });
+
+  const uncheckedItems = checklistConfig.filter((item) => !checkedItems[item.id]);
 
   const run = async (fn: () => Promise<any> | any) => {
     setBusy(true);
@@ -183,6 +206,70 @@ function PreviewPage() {
           >
             <Send className="h-4 w-4" /> Mark Ready & Send
           </button>
+        </div>
+
+        {/* Pre-Send Quality Checklist (Part 4) */}
+        <div className="rounded-lg border border-border bg-card p-3 text-card-foreground">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              <CheckSquare className="h-4 w-4 text-primary" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Pre-Send Quality Checklist
+              </span>
+              {uncheckedItems.length > 0 ? (
+                <span className="flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-500">
+                  <AlertCircle className="h-3 w-3" />
+                  {uncheckedItems.length} item(s) unchecked — consider hitting Refine first
+                </span>
+              ) : (
+                <span className="rounded-full border border-status-won/30 bg-status-won/10 px-2 py-0.5 text-[11px] font-medium text-status-won">
+                  All quality checks passed
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => setShowChecklist(!showChecklist)}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              {showChecklist ? "Hide checklist" : "Show checklist"}
+            </button>
+          </div>
+
+          {showChecklist && (
+            <div className="mt-2.5 grid grid-cols-1 gap-2 border-t border-border/60 pt-2.5 md:grid-cols-2 lg:grid-cols-3">
+              {checklistConfig.map((item) => (
+                <label
+                  key={item.id}
+                  className="flex items-start gap-2 rounded-md border border-border/50 bg-background/50 p-2 text-xs transition hover:bg-accent/40"
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!checkedItems[item.id]}
+                    onChange={(e) =>
+                      setCheckedItems((prev) => ({ ...prev, [item.id]: e.target.checked }))
+                    }
+                    className="mt-0.5 h-3.5 w-3.5 rounded border-border text-primary accent-primary"
+                  />
+                  <div className="flex flex-col">
+                    <span className={cn(checkedItems[item.id] ? "text-foreground" : "font-medium text-amber-500")}>
+                      {item.label}
+                    </span>
+                    {!checkedItems[item.id] && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setRefineText((prev) => (prev ? `${prev}; ${item.hint}` : item.hint))
+                        }
+                        className="mt-1 text-[11px] text-primary underline underline-offset-2 hover:opacity-80 text-left"
+                      >
+                        + Add refine instruction
+                      </button>
+                    )}
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* iframe */}
