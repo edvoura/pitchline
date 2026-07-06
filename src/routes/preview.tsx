@@ -11,9 +11,11 @@ import {
   ChevronDown,
   CheckSquare,
   AlertCircle,
+  Mail,
 } from "lucide-react";
 import { PageHeader } from "@/components/pitchline/PageHeader";
 import { usePitchline } from "@/lib/pitchline/store";
+import { sendOutreachEmailFn } from "@/lib/pitchline/server-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -86,11 +88,34 @@ function PreviewPage() {
     URL.revokeObjectURL(url);
   };
 
-  const markSent = () => {
+  const sendEmailOutreach = async () => {
     if (!lead) return;
-    markReady(lead.id);
-    setStage(lead.id, "sent");
-    navigate({ to: "/tracker" });
+    if (!lead.email) {
+      toast.info(`No email listed for ${lead.business}. Stage updated to Sent.`);
+      markReady(lead.id);
+      setStage(lead.id, "sent");
+      navigate({ to: "/tracker" });
+      return;
+    }
+
+    run(async () => {
+      try {
+        await sendOutreachEmailFn({
+          data: {
+            toEmail: lead.email!,
+            businessName: lead.business,
+            leadId: lead.id,
+          },
+        });
+        toast.success(`Outreach email sent to ${lead.email} via Resend!`);
+      } catch (err: any) {
+        toast.info(`Email dispatch info: ${err.message || "Stage updated to Sent"}`);
+      } finally {
+        markReady(lead.id);
+        setStage(lead.id, "sent");
+        navigate({ to: "/tracker" });
+      }
+    });
   };
 
   if (!lead || !demo) {
@@ -201,10 +226,11 @@ function PreviewPage() {
             <Download className="h-4 w-4" /> Export
           </button>
           <button
-            onClick={markSent}
-            className="flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+            onClick={sendEmailOutreach}
+            disabled={busy}
+            className="flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
           >
-            <Send className="h-4 w-4" /> Mark Ready & Send
+            <Mail className="h-4 w-4" /> Send Email & Track
           </button>
         </div>
 

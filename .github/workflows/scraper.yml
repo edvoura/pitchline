@@ -1,20 +1,27 @@
-name: Lead Scraper
+name: Lead Scraper — Global Matrix
 
 on:
   schedule:
     # Run automatically every Monday at midnight
     - cron: "0 0 * * 1"
   workflow_dispatch:
-    # Allow manual execution with custom query inputs from GitHub UI
     inputs:
+      region:
+        description: "Target Region (nigeria, uk, usa, canada, or all)"
+        required: true
+        default: "nigeria"
+      sector:
+        description: "Target Sector (dentists, roofing contractors, restaurants, saas, or all)"
+        required: true
+        default: "dentists"
       query:
-        description: "Target category + location search query"
-        required: true
-        default: "dentists in Ikeja"
+        description: "Custom comma-separated query list (overrides region/sector if provided)"
+        required: false
+        default: ""
       limit:
-        description: "Max number of leads to scrape"
+        description: "Max number of leads to scrape per query"
         required: true
-        default: "3"
+        default: "5"
 
 jobs:
   scrape:
@@ -34,9 +41,8 @@ jobs:
           cd scraper
           npm install
 
-      - name: Run Scraper Job
+      - name: Run Global Scraper Matrix
         env:
-          # Pass ALL secret name variants so the Node.js script can pick whichever exists
           GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -46,8 +52,10 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           MAILBOXLAYER_API_KEY: ${{ secrets.MAILBOXLAYER_API_KEY }}
-          QUERY: ${{ github.event.inputs.query || 'dentists in Ikeja' }}
-          LIMIT: ${{ github.event.inputs.limit || '3' }}
+          REGION: ${{ github.event.inputs.region || 'nigeria' }}
+          SECTOR: ${{ github.event.inputs.sector || 'dentists' }}
+          QUERY: ${{ github.event.inputs.query || '' }}
+          LIMIT: ${{ github.event.inputs.limit || '5' }}
         run: |
           cd scraper
           npm start

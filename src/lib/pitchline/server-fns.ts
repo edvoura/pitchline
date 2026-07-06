@@ -26,3 +26,18 @@ export const generateDemoFn = createServerFn({ method: "POST" })
       return generateGeminiDemo(compiledPrompt, currentHtml, refinements);
     }
   });
+
+interface SendOutreachInput {
+  toEmail: string;
+  businessName: string;
+  leadId: string;
+  demoUrl?: string;
+  customBody?: string;
+}
+
+export const sendOutreachEmailFn = createServerFn({ method: "POST" })
+  .validator((data: SendOutreachInput) => data)
+  .handler(async ({ data }) => {
+    const { sendOutreachEmail } = await import("../providers/email");
+    return sendOutreachEmail(data);
+  });
