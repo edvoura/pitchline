@@ -20,6 +20,7 @@ const GROUPS: { title: string; items: [string[], string][] }[] = [
   {
     title: "Navigate",
     items: [
+      [["0"], "Dashboard"],
       [["1"], "Leads"],
       [["2"], "Prompt Generator"],
       [["3"], "Demo Preview"],
