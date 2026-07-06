@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  LayoutDashboard,
   LayoutList,
   SlidersHorizontal,
   MonitorPlay,
@@ -12,8 +13,10 @@ import {
 import { cn } from "@/lib/utils";
 import { usePitchline } from "@/lib/pitchline/store";
 import { useUI } from "@/lib/pitchline/ui";
+import { getFollowUps } from "@/lib/pitchline/followups";
 
 const NAV = [
+  { to: "/", label: "Dashboard", icon: LayoutDashboard, key: "0" },
   { to: "/leads", label: "Leads", icon: LayoutList, key: "1" },
   { to: "/generator", label: "Prompt Generator", icon: SlidersHorizontal, key: "2" },
   { to: "/preview", label: "Demo Preview", icon: MonitorPlay, key: "3" },
@@ -25,6 +28,8 @@ export function Sidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { leads } = usePitchline();
   const { setCommandOpen, setHelpOpen } = useUI();
+
+  const followUps = getFollowUps(leads).actionable;
 
   const counts = {
     "/leads": leads.filter((l) => l.qualification === "pending").length,
@@ -47,6 +52,7 @@ export function Sidebar() {
           const active =
             pathname === item.to || pathname.startsWith(item.to + "/");
           const count = counts[item.to];
+          const alert = item.to === "/" && followUps > 0 ? followUps : 0;
           return (
             <Link
               key={item.to}
@@ -65,7 +71,11 @@ export function Sidebar() {
                 )}
               />
               <span className="flex-1 truncate">{item.label}</span>
-              {count ? (
+              {alert ? (
+                <span className="rounded bg-destructive/20 px-1.5 py-0.5 text-[11px] font-semibold text-destructive">
+                  {alert}
+                </span>
+              ) : count ? (
                 <span className="rounded bg-secondary px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground">
                   {count}
                 </span>

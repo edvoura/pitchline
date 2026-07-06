@@ -1,5 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import {
+  LayoutDashboard,
   LayoutList,
   SlidersHorizontal,
   MonitorPlay,
@@ -46,6 +47,9 @@ export function CommandPalette() {
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
         <CommandGroup heading="Navigate">
+          <CommandItem onSelect={() => run(() => navigate({ to: "/" }))}>
+            <LayoutDashboard /> Dashboard <CommandShortcut>0</CommandShortcut>
+          </CommandItem>
           <CommandItem onSelect={() => run(() => navigate({ to: "/leads" }))}>
             <LayoutList /> Leads <CommandShortcut>1</CommandShortcut>
           </CommandItem>
