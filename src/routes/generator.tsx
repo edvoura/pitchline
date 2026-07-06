@@ -118,16 +118,16 @@ function GeneratorPage() {
     setCompiled(null);
   };
 
-  const doCompile = () => {
+  const doCompile = async () => {
     if (!lead) return;
-    const rec = compileFor(lead.id, dir, provider);
+    const rec = await compileFor(lead.id, dir, provider);
     setCompiled(rec.compiled);
   };
 
-  const doGenerate = () => {
+  const doGenerate = async () => {
     if (!lead) return;
-    compileFor(lead.id, dir, provider);
-    generateDemo(lead.id);
+    const rec = await compileFor(lead.id, dir, provider);
+    generateDemo(lead.id, rec);
     navigate({ to: "/preview" });
   };
 

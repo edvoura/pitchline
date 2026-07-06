@@ -46,7 +46,10 @@ interface PitchlineContextValue extends PitchlineState {
     d: PromptDirection,
     provider: PromptRecord["provider"],
   ) => Promise<PromptRecord>;
-  generateDemo: (leadId: string) => Promise<DemoRecord | null>;
+  generateDemo: (
+    leadId: string,
+    passedPrompt?: PromptRecord,
+  ) => Promise<DemoRecord | null>;
   refineDemo: (
     leadId: string,
     instruction: string,
@@ -437,9 +440,9 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
   );
 
   const generateDemo = useCallback<PitchlineContextValue["generateDemo"]>(
-    async (leadId) => {
+    async (leadId, passedPrompt) => {
       const lead = state.leads.find((l) => l.id === leadId);
-      const prompt = state.prompts[leadId];
+      const prompt = passedPrompt || state.prompts[leadId];
       if (!lead || !prompt) return null;
 
       // Optimistic update so the preview screen shows a loading spinner immediately
