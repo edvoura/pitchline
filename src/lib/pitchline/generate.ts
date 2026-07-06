@@ -45,7 +45,7 @@ export function compilePrompt(lead: Lead, d: PromptDirection): string {
   const sections = d.sections.length ? d.sections.join(", ") : "Hero, Features, Social Proof, CTA, Closing";
   const ctaFocus = d.ctaFocus || "Book / Contact";
 
-  const goal = `Create a high-converting website for a ${lead.industry} business located in ${lead.location}, optimizing for the primary call-to-action: "${ctaFocus}".`;
+  const goal = `Create a high-converting digital presence concept (either a full-desktop landing page or a beautiful mobile web app concept enclosed in an elegant smartphone mockup device frame if appropriate for this business) for a ${lead.industry} business located in ${lead.location}, optimizing for the primary action: "${ctaFocus}".`;
 
   return `BUSINESS: ${lead.business}, ${lead.industry}, ${lead.location}
 GOAL: ${goal}

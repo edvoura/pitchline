@@ -5,7 +5,9 @@ import { buildQueryList } from "./matrix.js";
 
 dotenv.config();
 
-const GOOGLE_PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY || process.env.PLACES_API_KEY || process.env.GEMINI_API_KEY;
+const GOOGLE_PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY || process.env.PLACES_API_KEY;
+const APIFY_API_KEY = process.env.APIFY_API_KEY || process.env.apify_api;
+const SERP_API_KEY = process.env.SERP_API_KEY || process.env.serp_api;
 const MAILBOXLAYER_API_KEY = process.env.MAILBOXLAYER_API_KEY;
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -21,17 +23,11 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   process.exit(1);
 }
 
-if (!GOOGLE_PLACES_API_KEY) {
-  console.error("Missing GOOGLE_PLACES_API_KEY or GEMINI_API_KEY.");
-  process.exit(1);
-}
-
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // Helper: Regex to extract emails
 const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
 
-// Helper: Filter out false-positive emails (e.g., images, domain defaults)
 function isValidEmailPattern(email) {
   const lowercase = email.toLowerCase();
   const invalidExtensions = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".css", ".js"];
@@ -43,19 +39,15 @@ function isValidEmailPattern(email) {
   return true;
 }
 
-// Helper: Mailboxlayer validation
 async function validateEmail(email) {
   if (!MAILBOXLAYER_API_KEY) {
     return "unknown";
   }
-
   try {
     const res = await fetch(`http://apilayer.net/api/check?access_key=${MAILBOXLAYER_API_KEY}&email=${encodeURIComponent(email)}`);
     if (!res.ok) return "unknown";
-
     const payload = await res.json();
     if (payload.success === false) return "unknown";
-
     const isValid = payload.format_valid && payload.mx_found;
     return isValid ? "valid" : "invalid";
   } catch (err) {
@@ -63,50 +55,139 @@ async function validateEmail(email) {
   }
 }
 
+/**
+ * Fetch candidates using Google Places API
+ */
+async function fetchGooglePlacesCandidates(query) {
+  console.log(`[Places] Querying Google Places API...`);
+  const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${GOOGLE_PLACES_API_KEY}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (data.status === "REQUEST_DENIED") throw new Error(data.error_message || "Denied");
+
+  const results = data.results || [];
+  return results.slice(0, MAX_PLACES).map((item) => ({
+    placeId: item.place_id,
+    businessName: item.name,
+    address: item.formatted_address || "—",
+    phone: item.formatted_phone_number || "",
+    website: item.website || "",
+    raw: item
+  }));
+}
+
+/**
+ * Fetch candidates using Apify Google Maps Scraper (Free $5 Credits)
+ */
+async function fetchApifyCandidates(query) {
+  console.log(`[Apify] Querying Google Maps Scraper Actor...`);
+  const runUrl = `https://api.apify.com/v2/acts/compass~crawler-google-places/run-sync-get-dataset-items?token=${APIFY_API_KEY}`;
+  const res = await fetch(runUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      searchStrings: [query],
+      maxPlacesPerSearch: MAX_PLACES,
+      exportPlaceUrls: false
+    })
+  });
+  if (!res.ok) throw new Error(`Apify returned HTTP ${res.status}`);
+  const results = await res.json();
+
+  return (results || []).slice(0, MAX_PLACES).map((item, index) => ({
+    placeId: item.placeId || `apify_${Date.now()}_${index}`,
+    businessName: item.title || item.name,
+    address: item.address || item.street || "—",
+    phone: item.phone || "",
+    website: item.website || "",
+    raw: item
+  }));
+}
+
+/**
+ * Fetch candidates using SerpAPI Google Maps engine (Free 100 searches/mo)
+ */
+async function fetchSerpApiCandidates(query) {
+  console.log(`[SerpAPI] Querying Local Pack / Maps search...`);
+  const url = `https://serpapi.com/search.json?engine=google_maps&q=${encodeURIComponent(query)}&api_key=${SERP_API_KEY}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`SerpAPI returned HTTP ${res.status}`);
+  const data = await res.json();
+
+  const results = data.local_results || data.places || [];
+  return results.slice(0, MAX_PLACES).map((item, index) => ({
+    placeId: item.place_id || item.gps_coordinates?.latitude + "_" + item.gps_coordinates?.longitude || `serp_${Date.now()}_${index}`,
+    businessName: item.title || item.name,
+    address: item.address || "—",
+    phone: item.phone || "",
+    website: item.website || "",
+    raw: item
+  }));
+}
+
 async function scrapeSingleQuery(query) {
   console.log(`\n========================================`);
-  console.log(`[Scraper] Processing query: "${query}"`);
+  console.log(`[Scraper] Processing: "${query}"`);
   console.log(`========================================`);
 
-  const placesUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${GOOGLE_PLACES_API_KEY}`;
-  
   let candidates = [];
-  try {
-    const res = await fetch(placesUrl);
-    if (!res.ok) throw new Error(`Google Places HTTP error: ${res.status}`);
-    const data = await res.json();
 
-    if (data.status === "OVER_QUERY_LIMIT") {
-      console.error("[Places] Google API rate-limit reached.");
-      return 0;
+  // Try Google Places API first
+  if (GOOGLE_PLACES_API_KEY) {
+    try {
+      candidates = await fetchGooglePlacesCandidates(query);
+    } catch (err) {
+      console.warn(`[Places] Failed to fetch via Google Places (${err.message}). Trying fallbacks...`);
     }
-    if (data.status === "REQUEST_DENIED") {
-      console.error(`[Places] Request denied: ${data.error_message || "Invalid API key"}.`);
-      return 0;
+  }
+
+  // Fallback 1: Apify Scraper API
+  if (candidates.length === 0 && APIFY_API_KEY) {
+    try {
+      candidates = await fetchApifyCandidates(query);
+    } catch (err) {
+      console.warn(`[Apify] Failed to fetch via Apify (${err.message}). Trying fallbacks...`);
     }
+  }
 
-    const results = data.results || [];
-    console.log(`[Places] Found ${results.length} total matches.`);
-
-    candidates = results.slice(0, MAX_PLACES).map((item) => ({
-      placeId: item.place_id,
-      businessName: item.name,
-      address: item.formatted_address || "—",
-      phone: item.formatted_phone_number || "",
-      website: item.website || "",
-      raw: item
-    }));
-  } catch (err) {
-    console.error("[Places] Failed to fetch places:", err.message);
-    return 0;
+  // Fallback 2: SerpAPI
+  if (candidates.length === 0 && SERP_API_KEY) {
+    try {
+      candidates = await fetchSerpApiCandidates(query);
+    } catch (err) {
+      console.error(`[SerpAPI] Failed to fetch via SerpAPI:`, err.message);
+    }
   }
 
   if (candidates.length === 0) {
-    console.log("[Scraper] No candidates found for this query.");
+    console.error(`[Scraper] All harvesting APIs failed or were not configured for: "${query}".`);
     return 0;
   }
 
-  // Crawl candidates' websites to find contact emails
+  // Resolve additional website details if Google Places was used and website was missing
+  if (GOOGLE_PLACES_API_KEY) {
+    for (let i = 0; i < candidates.length; i++) {
+      const cand = candidates[i];
+      if (!cand.website) {
+        try {
+          const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${cand.placeId}&fields=website,formatted_phone_number&key=${GOOGLE_PLACES_API_KEY}`;
+          const res = await fetch(detailsUrl);
+          if (res.ok) {
+            const detailData = await res.json();
+            if (detailData.result) {
+              if (detailData.result.website) cand.website = detailData.result.website;
+              if (detailData.result.formatted_phone_number) cand.phone = detailData.result.formatted_phone_number;
+            }
+          }
+        } catch (err) {
+          // ignore details failure
+        }
+      }
+    }
+  }
+
+  // Crawl websites using Crawlee
   const urlsToCrawl = candidates
     .filter((c) => c.website)
     .map((c) => ({ url: c.website, placeId: c.placeId }));
@@ -146,7 +227,7 @@ async function scrapeSingleQuery(query) {
       },
 
       failedRequestHandler({ request, error }) {
-        console.warn(`[Crawlee] Crawl skipped for ${request.url}:`, error.message);
+        // quiet failure logs
       }
     });
 
@@ -158,7 +239,7 @@ async function scrapeSingleQuery(query) {
     try {
       await crawler.run(initialRequests);
     } catch (err) {
-      console.error("[Crawlee] Crawler run warning:", err.message);
+      console.warn("[Crawlee] Crawler run notice:", err.message);
     }
   }
 
@@ -219,7 +300,7 @@ async function run() {
   if (RAW_QUERY) {
     targetQueries = RAW_QUERY.split(",").map((q) => q.trim()).filter(Boolean);
   } else {
-    targetQueries = buildQueryList(REGION_PARAM, SECTOR_PARAM, 10);
+    targetQueries = buildQueryList(REGION_PARAM, SECTOR_PARAM, 15);
   }
 
   console.log(`\n========================================`);

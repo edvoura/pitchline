@@ -35,6 +35,7 @@ export async function generateClaudeDemo(
   2. Visual hierarchy must be obvious at a glance: clear spacing rhythm, intentional contrast, no cramped or uniform-looking blocks of text.
   3. Never default to a generic template look (centered text + stock gradient + Bootstrap-like buttons). Choose a specific point of view.
   4. Every demo should look like it took a designer a day, not like a form was auto-filled into a template.
+  5. If the brief indicates a mobile app or software concept, build a gorgeous interactive smartphone UI viewport container (using clean CSS device frame mockups) right in the center of the viewport, rather than just a standard desktop layout.
 - Output ONLY valid, raw, production-ready, self-contained HTML + CSS for the requested website. Do not include markdown code block backticks (like \`\`\`html) or conversational text before or after the code. Start directly with <!DOCTYPE html>.`;
 
   let promptText = prompt;
