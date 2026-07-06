@@ -14,6 +14,40 @@ function cleanHtml(raw: string): string {
   return text.trim();
 }
 
+/** Retry-aware fetch: retries on 429 / 503 / 500 with exponential backoff */
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  maxRetries = 2,
+): Promise<Response> {
+  const delays = [3000, 6000, 12000]; // 3s, 6s, 12s
+  let lastResponse: Response | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const response = await fetch(url, init);
+
+    if (response.ok) return response;
+
+    // Only retry on rate-limit or transient server errors
+    if ([429, 500, 503].includes(response.status) && attempt < maxRetries) {
+      console.warn(
+        `[Gemini] Attempt ${attempt + 1} failed with ${response.status}, retrying in ${delays[attempt]}ms...`,
+      );
+      await new Promise((r) => setTimeout(r, delays[attempt]));
+      lastResponse = response;
+      continue;
+    }
+
+    return response; // Non-retryable error, return as-is
+  }
+
+  return lastResponse!;
+}
+
+// Model priority: try gemini-2.0-flash first (higher rate limits),
+// fall back to gemini-2.5-flash if the primary model errors
+const MODELS = ["gemini-2.0-flash", "gemini-2.5-flash"] as const;
+
 export async function generateGeminiDemo(
   prompt: string,
   currentHtml?: string | null,
@@ -26,40 +60,45 @@ export async function generateGeminiDemo(
   }
 
   const start = Date.now();
-  let tokensUsed = 0;
 
-  const planSystemInstruction = `You are an expert web strategist and designer.
-Given a prompt brief for a landing page, output a structured JSON plan for the website layout, content outline, aesthetics, and interactive elements.
-Do not include any conversational text or markdown code blocks (like \`\`\`json). Output ONLY the raw JSON object.
-Use this exact JSON shape:
-{
-  "sections": [{"name": "Hero | Features | Social Proof | CTA | Closing", "purpose": "Description of section goals and content"}],
-  "copyOutline": {"story": "SNAP Story hook", "need": "SNAP Need focus", "answer": "SNAP Answer details", "proof": "SNAP Proof proofpoints"},
-  "colorPalette": ["Tailwind color codes e.g. bg-slate-900, text-emerald-400"],
-  "typography": "font-sans | font-serif | font-mono",
-  "interactiveElements": ["accordions", "tabs", "mobile-nav", "modals", "reveals"]
-}`;
+  // Single-call system instruction that includes planning guidance inline
+  // (avoids double API calls which exhaust rate limits)
+  const systemInstruction = `You are an expert web designer/developer building a single-page website demo.
 
-  const buildSystemInstruction = `You are an expert web designer/developer building a single-page website demo.
-Follow these rules regardless of how much detail is given below:
-- EVERY section must have one clear purpose per the design framework.
-- Write copy using Story -> Need -> Answer -> Proof (SNAP framework). Never write like a marketer — write like someone who deeply understands this exact audience.
-- Style the page beautifully using Tailwind CSS. Use the Tailwind CDN:
-  <script src="https://cdn.tailwindcss.com"></script>
-- Use Alpine.js for ALL interactive components (tabs, accordions, mobile nav toggle, modals, reveals, etc.). Load Alpine via CDN:
-  <script src="https://unpkg.com/alpinejs" defer></script>
-- Do not produce static markup with no interactive elements. A premium demo must have working micro-interactions, hover states on cards/buttons, smooth scroll reveals, and toggle states.
+PLANNING PHASE (do this mentally before writing code):
+1. Decide on 5 sections: Hero, Features/Services, Social Proof, CTA, Footer
+2. Plan the copy outline using Story -> Need -> Answer -> Proof (SNAP framework)
+3. Choose a harmonious color palette using Tailwind utility classes
+4. Decide which interactive elements to include (at least 3 of: accordion, tabs, mobile-nav toggle, modal, scroll-reveal, counter animation)
+
+BUILDING RULES (follow these strictly):
+- Style the page using Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
+- Use Alpine.js via CDN for ALL interactive components: <script src="https://unpkg.com/alpinejs" defer></script>
+- Every demo MUST have working interactive elements — tabs that switch content, mobile menu that toggles, accordions that expand/collapse, smooth scroll, hover states on all buttons and cards.
+- Write copy like someone who deeply understands the target audience — never generic marketing speak.
 - BASELINE QUALITY BAR:
   1. Spacing rhythm, visual hierarchy, and contrast must be premium and obvious at a glance.
-  2. If the brief indicates a mobile app or software concept, build a gorgeous interactive smartphone UI viewport container (using clean CSS device frame mockups) right in the center of the viewport, rather than just a standard desktop layout.
-- Output ONLY valid, raw, production-ready, self-contained HTML + CSS for the requested website. Do not include markdown code block backticks (like \`\`\`html) or conversational text before or after the code. Start directly with <!DOCTYPE html>.`;
+  2. Never produce a flat static page with no motion — add hover transitions, scroll animations, and state changes.
+  3. If the brief indicates a mobile app or software concept, build a gorgeous interactive smartphone UI viewport mockup in the center of the page.
+- Output ONLY valid, raw, production-ready, self-contained HTML. Do not include markdown code block backticks (like \`\`\`html) or conversational text. Start directly with <!DOCTYPE html>.`;
 
-  let planText = "";
-  if (!currentHtml) {
-    if (onStageChange) onStageChange("planning");
-    // Stage 1: Planning
-    const planUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-    const planResponse = await fetch(planUrl, {
+  if (onStageChange) onStageChange("building");
+
+  let promptText = prompt;
+  if (currentHtml) {
+    promptText = `Here is the current HTML code of the website:\n\n${currentHtml}\n\nApply the following refinements to the design. Do not explain anything; output the revised self-contained HTML code directly:\n\n${refinements
+      ?.map((r, i) => `${i + 1}. ${r}`)
+      .join("\n")}`;
+  }
+
+  // Try each model in priority order
+  let lastError = "";
+  for (const model of MODELS) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+    console.log(`[Gemini] Trying model: ${model}...`);
+
+    const response = await fetchWithRetry(url, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -69,71 +108,40 @@ Follow these rules regardless of how much detail is given below:
           {
             parts: [
               {
-                text: `${planSystemInstruction}\n\nPrompt: ${prompt}`,
+                text: `${systemInstruction}\n\n${promptText}`,
               },
             ],
           },
         ],
         generationConfig: {
-          maxOutputTokens: 1500,
-          temperature: 0.2,
+          maxOutputTokens: 8192,
+          temperature: 0.3,
         },
       }),
     });
 
-    if (planResponse.ok) {
-      const planPayload = await planResponse.json();
-      planText = planPayload.candidates?.[0]?.content?.parts?.[0]?.text || "";
-      tokensUsed += planPayload.usageMetadata?.totalTokenCount || 0;
+    if (!response.ok) {
+      lastError = await response.text();
+      console.warn(`[Gemini] Model ${model} failed: ${response.status} - ${lastError.substring(0, 200)}`);
+      // Try next model
+      continue;
     }
+
+    const payload = await response.json();
+    const rawText = payload.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+    if (!rawText || rawText.length < 50) {
+      console.warn(`[Gemini] Model ${model} returned empty/short response, trying next model...`);
+      lastError = "Empty response from model";
+      continue;
+    }
+
+    const html = cleanHtml(rawText);
+    const tokensUsed = payload.usageMetadata?.totalTokenCount || 0;
+    const generationMs = Date.now() - start;
+
+    return { html, tokensUsed, generationMs };
   }
 
-  // Stage 2: Building
-  if (onStageChange) onStageChange("building");
-
-  let promptText = prompt;
-  if (currentHtml) {
-    promptText = `Here is the current HTML code of the website:\n\n${currentHtml}\n\nApply the following refinements to the design. Do not explain anything; output the revised self-contained HTML code directly:\n\n${refinements
-      ?.map((r, i) => `${i + 1}. ${r}`)
-      .join("\n")}`;
-  } else {
-    promptText = `Prompt Brief: ${prompt}\n\nDesign Plan (follow this layout and structure):\n${planText}`;
-  }
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            {
-              text: `${buildSystemInstruction}\n\n${promptText}`,
-            },
-          ],
-        },
-      ],
-      generationConfig: {
-        maxOutputTokens: 8192,
-        temperature: 0.2,
-      },
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini API Error: ${response.status} - ${errorText}`);
-  }
-
-  const payload = await response.json();
-  const rawText = payload.candidates?.[0]?.content?.parts?.[0]?.text || "";
-  const html = cleanHtml(rawText);
-  tokensUsed += payload.usageMetadata?.totalTokenCount || 0;
-  const generationMs = Date.now() - start;
-
-  return { html, tokensUsed, generationMs };
+  throw new Error(`Gemini API Error: All models failed. Last error: ${lastError.substring(0, 300)}`);
 }

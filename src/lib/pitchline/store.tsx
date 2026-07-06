@@ -478,16 +478,25 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
 
       try {
         let result;
-        const clientKey = prompt.provider === "claude"
-          ? import.meta.env.VITE_CLAUDE_API_KEY
-          : import.meta.env.VITE_GEMINI_API_KEY;
+        const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        const claudeKey = import.meta.env.VITE_CLAUDE_API_KEY;
+        // Auto-fallback: use the requested provider if its key exists, otherwise use whichever key is available
+        let effectiveProvider = prompt.provider;
+        if (effectiveProvider === "claude" && !claudeKey && geminiKey) {
+          console.warn("[Pitchline] Claude key missing, falling back to Gemini");
+          effectiveProvider = "gemini";
+        } else if (effectiveProvider === "gemini" && !geminiKey && claudeKey) {
+          console.warn("[Pitchline] Gemini key missing, falling back to Claude");
+          effectiveProvider = "claude";
+        }
+        const clientKey = effectiveProvider === "claude" ? claudeKey : geminiKey;
 
         if (clientKey) {
-          console.log(`[Pitchline] Running client-side generation using ${prompt.provider}...`);
+          console.log(`[Pitchline] Running client-side generation using ${effectiveProvider}...`);
           const onStageChange = (stage: "planning" | "building") => {
             setState((s) => ({ ...s, generationStage: stage }));
           };
-          if (prompt.provider === "claude") {
+          if (effectiveProvider === "claude") {
             result = await generateClaudeDemo(prompt.compiled, null, [], onStageChange);
           } else {
             result = await generateGeminiDemo(prompt.compiled, null, [], onStageChange);
@@ -566,16 +575,22 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
 
       try {
         let result;
-        const clientKey = prompt.provider === "claude"
-          ? import.meta.env.VITE_CLAUDE_API_KEY
-          : import.meta.env.VITE_GEMINI_API_KEY;
+        const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        const claudeKey = import.meta.env.VITE_CLAUDE_API_KEY;
+        let effectiveProvider = prompt.provider;
+        if (effectiveProvider === "claude" && !claudeKey && geminiKey) {
+          effectiveProvider = "gemini";
+        } else if (effectiveProvider === "gemini" && !geminiKey && claudeKey) {
+          effectiveProvider = "claude";
+        }
+        const clientKey = effectiveProvider === "claude" ? claudeKey : geminiKey;
 
         if (clientKey) {
-          console.log(`[Pitchline] Running client-side refinement using ${prompt.provider}...`);
+          console.log(`[Pitchline] Running client-side refinement using ${effectiveProvider}...`);
           const onStageChange = (stage: "planning" | "building") => {
             setState((s) => ({ ...s, generationStage: stage }));
           };
-          if (prompt.provider === "claude") {
+          if (effectiveProvider === "claude") {
             result = await generateClaudeDemo(prompt.compiled, existing.html, refinements, onStageChange);
           } else {
             result = await generateGeminiDemo(prompt.compiled, existing.html, refinements, onStageChange);

@@ -14,6 +14,35 @@ function cleanHtml(raw: string): string {
   return text.trim();
 }
 
+/** Retry-aware fetch: retries on 429 / 503 / 500 / 529 with exponential backoff */
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  maxRetries = 2,
+): Promise<Response> {
+  const delays = [3000, 6000, 12000];
+  let lastResponse: Response | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const response = await fetch(url, init);
+
+    if (response.ok) return response;
+
+    if ([429, 500, 503, 529].includes(response.status) && attempt < maxRetries) {
+      console.warn(
+        `[Claude] Attempt ${attempt + 1} failed with ${response.status}, retrying in ${delays[attempt]}ms...`,
+      );
+      await new Promise((r) => setTimeout(r, delays[attempt]));
+      lastResponse = response;
+      continue;
+    }
+
+    return response;
+  }
+
+  return lastResponse!;
+}
+
 export async function generateClaudeDemo(
   prompt: string,
   currentHtml?: string | null,
@@ -26,60 +55,27 @@ export async function generateClaudeDemo(
   }
 
   const start = Date.now();
-  let tokensUsed = 0;
 
-  const planSystemInstruction = `You are an expert web strategist and designer.
-Given a prompt brief for a landing page, output a structured JSON plan for the website layout, content outline, aesthetics, and interactive elements.
-Do not include any conversational text or markdown code blocks (like \`\`\`json). Output ONLY the raw JSON object.
-Use this exact JSON shape:
-{
-  "sections": [{"name": "Hero | Features | Social Proof | CTA | Closing", "purpose": "Description of section goals and content"}],
-  "copyOutline": {"story": "SNAP Story hook", "need": "SNAP Need focus", "answer": "SNAP Answer details", "proof": "SNAP Proof proofpoints"},
-  "colorPalette": ["Tailwind color codes e.g. bg-slate-900, text-emerald-400"],
-  "typography": "font-sans | font-serif | font-mono",
-  "interactiveElements": ["accordions", "tabs", "mobile-nav", "modals", "reveals"]
-}`;
+  // Single-call system instruction with planning guidance built in
+  const systemInstruction = `You are an expert web designer/developer building a single-page website demo.
 
-  const buildSystemInstruction = `You are an expert web designer/developer building a single-page website demo.
-Follow these rules regardless of how much detail is given below:
-- EVERY section must have one clear purpose per the design framework.
-- Write copy using Story -> Need -> Answer -> Proof (SNAP framework). Never write like a marketer — write like someone who deeply understands this exact audience.
-- Style the page beautifully using Tailwind CSS. Use the Tailwind CDN:
-  <script src="https://cdn.tailwindcss.com"></script>
-- Use Alpine.js for ALL interactive components (tabs, accordions, mobile nav toggle, modals, reveals, etc.). Load Alpine via CDN:
-  <script src="https://unpkg.com/alpinejs" defer></script>
-- Do not produce static markup with no interactive elements. A premium demo must have working micro-interactions, hover states on cards/buttons, smooth scroll reveals, and toggle states.
+PLANNING PHASE (do this mentally before writing code):
+1. Decide on 5 sections: Hero, Features/Services, Social Proof, CTA, Footer
+2. Plan the copy outline using Story -> Need -> Answer -> Proof (SNAP framework)
+3. Choose a harmonious color palette using Tailwind utility classes
+4. Decide which interactive elements to include (at least 3 of: accordion, tabs, mobile-nav toggle, modal, scroll-reveal, counter animation)
+
+BUILDING RULES (follow these strictly):
+- Style the page using Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
+- Use Alpine.js via CDN for ALL interactive components: <script src="https://unpkg.com/alpinejs" defer></script>
+- Every demo MUST have working interactive elements — tabs that switch content, mobile menu that toggles, accordions that expand/collapse, smooth scroll, hover states on all buttons and cards.
+- Write copy like someone who deeply understands the target audience — never generic marketing speak.
 - BASELINE QUALITY BAR:
   1. Spacing rhythm, visual hierarchy, and contrast must be premium and obvious at a glance.
-  2. If the brief indicates a mobile app or software concept, build a gorgeous interactive smartphone UI viewport container (using clean CSS device frame mockups) right in the center of the viewport, rather than just a standard desktop layout.
-- Output ONLY valid, raw, production-ready, self-contained HTML + CSS for the requested website. Do not include markdown code block backticks (like \`\`\`html) or conversational text before or after the code. Start directly with <!DOCTYPE html>.`;
+  2. Never produce a flat static page with no motion — add hover transitions, scroll animations, and state changes.
+  3. If the brief indicates a mobile app or software concept, build a gorgeous interactive smartphone UI viewport mockup in the center of the page.
+- Output ONLY valid, raw, production-ready, self-contained HTML. Do not include markdown code block backticks (like \`\`\`html) or conversational text. Start directly with <!DOCTYPE html>.`;
 
-  let planText = "";
-  if (!currentHtml) {
-    if (onStageChange) onStageChange("planning");
-    // Stage 1: Planning
-    const planResponse = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-3-5-sonnet-20241022",
-        max_tokens: 1500,
-        system: planSystemInstruction,
-        messages: [{ role: "user", content: `Prompt: ${prompt}` }],
-      }),
-    });
-    if (planResponse.ok) {
-      const planPayload = await planResponse.json();
-      planText = planPayload.content?.[0]?.text || "";
-      tokensUsed += (planPayload.usage?.input_tokens || 0) + (planPayload.usage?.output_tokens || 0);
-    }
-  }
-
-  // Stage 2: Building
   if (onStageChange) onStageChange("building");
 
   let promptText = prompt;
@@ -87,22 +83,19 @@ Follow these rules regardless of how much detail is given below:
     promptText = `Here is the current HTML code of the website:\n\n${currentHtml}\n\nApply the following refinements to the design. Do not explain anything; output the revised self-contained HTML code directly:\n\n${refinements
       ?.map((r, i) => `${i + 1}. ${r}`)
       .join("\n")}`;
-  } else {
-    promptText = `Prompt Brief: ${prompt}\n\nDesign Plan (follow this layout and structure):\n${planText}`;
   }
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetchWithRetry("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "x-api-key": apiKey,
       "anthropic-version": "2023-06-01",
       "content-type": "application/json",
-      "anthropic-beta": "max-tokens-2024-08-28", // Enable 8k output tokens
     },
     body: JSON.stringify({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-sonnet-4-20250514",
       max_tokens: 8000,
-      system: buildSystemInstruction,
+      system: systemInstruction,
       messages: [{ role: "user", content: promptText }],
     }),
   });
@@ -115,7 +108,8 @@ Follow these rules regardless of how much detail is given below:
   const payload = await response.json();
   const rawHtml = payload.content?.[0]?.text || "";
   const html = cleanHtml(rawHtml);
-  tokensUsed += (payload.usage?.input_tokens || 0) + (payload.usage?.output_tokens || 0);
+  const tokensUsed =
+    (payload.usage?.input_tokens || 0) + (payload.usage?.output_tokens || 0);
   const generationMs = Date.now() - start;
 
   return { html, tokensUsed, generationMs };
