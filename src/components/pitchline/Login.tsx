@@ -54,10 +54,7 @@ export function Login() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-[380px] rounded-xl border border-border bg-surface p-6 shadow-2xl animate-slide-up">
         <div className="mb-6 flex flex-col items-center text-center">
-          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Zap className="h-5 w-5" strokeWidth={2.5} />
-          </div>
-          <h1 className="text-lg font-bold tracking-tight">Welcome to Pitchline</h1>
+          <img src="/logo.png" alt="Pitchline" className="mb-2 h-10 w-auto object-contain" />
           <p className="text-xs text-muted-foreground mt-1">
             Operator console for Trendtactics Digital
           </p>

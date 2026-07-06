@@ -41,11 +41,8 @@ export function Sidebar() {
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
-      <div className="flex h-14 items-center gap-2 px-5">
-        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
-          <Zap className="h-4 w-4" strokeWidth={2.5} />
-        </span>
-        <span className="text-[15px] font-bold tracking-tight">Pitchline</span>
+      <div className="flex h-14 items-center px-4">
+        <img src="/logo.png" alt="Pitchline" className="h-8 w-auto object-contain" />
       </div>
 
       <nav className="flex-1 space-y-0.5 px-3 py-2">
