@@ -1,0 +1,47 @@
+name: Lead Scraper
+
+on:
+  schedule:
+    # Run automatically every Monday at midnight
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+    # Allow manual execution with custom query inputs from GitHub UI
+    inputs:
+      query:
+        description: "Target category + location search query"
+        required: true
+        default: "dentists in Ikeja"
+      limit:
+        description: "Max number of leads to scrape"
+        required: true
+        default: "3"
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Scraper Dependencies
+        run: |
+          cd scraper
+          npm install
+
+      - name: Run Scraper Job
+        env:
+          GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          MAILBOXLAYER_API_KEY: ${{ secrets.MAILBOXLAYER_API_KEY }}
+          QUERY: ${{ github.event.inputs.query || 'dentists in Ikeja' }}
+          LIMIT: ${{ github.event.inputs.limit || '3' }}
+        run: |
+          cd scraper
+          npm start
