@@ -52,6 +52,7 @@ export function Sidebar() {
           const active =
             pathname === item.to || pathname.startsWith(item.to + "/");
           const count = counts[item.to];
+          const alert = item.to === "/" && followUps > 0 ? followUps : 0;
           return (
             <Link
               key={item.to}
