@@ -1,0 +1,16 @@
+{
+  "name": "pitchline-scraper",
+  "version": "1.0.0",
+  "description": "Standalone scheduled web scraper for the Pitchline cockpit",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.8",
+    "cheerio": "^1.0.0-rc.12",
+    "crawlee": "^3.8.0",
+    "dotenv": "^16.4.5"
+  }
+}
