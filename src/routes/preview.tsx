@@ -36,6 +36,7 @@ function PreviewPage() {
   const [refineText, setRefineText] = useState("");
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
+  const isGenerating = busy || (demo && demo.html === "<!-- generating -->");
   const [showChecklist, setShowChecklist] = useState(true);
 
   const checklistConfig = [
@@ -180,10 +181,10 @@ function PreviewPage() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => run(() => generateDemo(lead.id))}
-            disabled={busy}
+            disabled={isGenerating}
             className="flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium transition hover:bg-accent disabled:opacity-50"
           >
-            <RefreshCw className={cn("h-4 w-4", busy && "animate-spin")} /> Regenerate
+            <RefreshCw className={cn("h-4 w-4", isGenerating && "animate-spin")} /> Regenerate
           </button>
 
           <div className="flex flex-1 items-center gap-2 rounded-md border border-border bg-surface px-2 py-1">
@@ -205,7 +206,7 @@ function PreviewPage() {
                 run(() => refineDemo(lead.id, refineText.trim()));
                 setRefineText("");
               }}
-              disabled={busy || !refineText.trim()}
+              disabled={isGenerating || !refineText.trim()}
               className="flex items-center gap-1.5 rounded bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
             >
               <Wand2 className="h-3.5 w-3.5" /> Refine
@@ -227,7 +228,7 @@ function PreviewPage() {
           </button>
           <button
             onClick={sendEmailOutreach}
-            disabled={busy}
+            disabled={isGenerating}
             className="flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
           >
             <Mail className="h-4 w-4" /> Send Email & Track
@@ -300,7 +301,7 @@ function PreviewPage() {
 
         {/* iframe */}
         <div className="relative flex-1 overflow-hidden rounded-lg border border-border bg-white">
-          {busy && (
+          {isGenerating && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur-sm">
               <div className="flex items-center gap-2 text-sm text-foreground">
                 <RefreshCw className="h-4 w-4 animate-spin text-primary" />

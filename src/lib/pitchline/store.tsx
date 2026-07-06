@@ -20,6 +20,8 @@ import { STARTER_TEMPLATES } from "./mock";
 import { compilePrompt } from "./generate";
 import { supabase } from "../supabase";
 import { generateDemoFn } from "./server-fns";
+import { generateGeminiDemo } from "../providers/gemini";
+import { generateClaudeDemo } from "../providers/claude";
 import { toast } from "sonner";
 
 interface PitchlineState {
@@ -475,10 +477,8 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
         if (clientKey) {
           console.log(`[Pitchline] Running client-side generation using ${prompt.provider}...`);
           if (prompt.provider === "claude") {
-            const { generateClaudeDemo } = await import("../providers/claude");
             result = await generateClaudeDemo(prompt.compiled, null, []);
           } else {
-            const { generateGeminiDemo } = await import("../providers/gemini");
             result = await generateGeminiDemo(prompt.compiled, null, []);
           }
         } else {
@@ -560,10 +560,8 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
         if (clientKey) {
           console.log(`[Pitchline] Running client-side refinement using ${prompt.provider}...`);
           if (prompt.provider === "claude") {
-            const { generateClaudeDemo } = await import("../providers/claude");
             result = await generateClaudeDemo(prompt.compiled, existing.html, refinements);
           } else {
-            const { generateGeminiDemo } = await import("../providers/gemini");
             result = await generateGeminiDemo(prompt.compiled, existing.html, refinements);
           }
         } else {
