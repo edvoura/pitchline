@@ -30,6 +30,9 @@ interface PitchlineState {
 }
 
 interface PitchlineContextValue extends PitchlineState {
+  session: any;
+  user: any;
+  signOut: () => Promise<void>;
   setActiveLead: (id: string | null) => void;
   addLeads: (leads: Lead[]) => Promise<void>;
   addLead: (lead: Lead) => Promise<void>;
@@ -203,8 +206,36 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
     activeLeadId: null,
   });
 
-  // Load from Supabase on mount
+  const [session, setSession] = useState<any>(null);
+  const user = session?.user ?? null;
+
+  // Sync auth state
   useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+  }, []);
+
+  // Load from Supabase when session becomes active
+  useEffect(() => {
+    if (!session) {
+      // Clear data if logged out
+      setState((s) => ({ ...s, leads: [], templates: [], prompts: {}, demos: {} }));
+      return;
+    }
+
     async function loadData() {
       try {
         const [leadsRes, templatesRes, promptsRes, demosRes] = await Promise.all([
@@ -256,7 +287,7 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
       }
     }
     loadData();
-  }, []);
+  }, [session]);
 
   const setActiveLead = useCallback((id: string | null) => {
     setState((s) => ({ ...s, activeLeadId: id }));
@@ -582,6 +613,9 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
   const value = useMemo<PitchlineContextValue>(
     () => ({
       ...state,
+      session,
+      user,
+      signOut,
       setActiveLead,
       addLeads,
       addLead,
@@ -599,6 +633,9 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
     }),
     [
       state,
+      session,
+      user,
+      signOut,
       setActiveLead,
       addLeads,
       addLead,

@@ -9,6 +9,7 @@ import {
   Zap,
   Search,
   Keyboard,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePitchline } from "@/lib/pitchline/store";
@@ -26,7 +27,7 @@ const NAV = [
 
 export function Sidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  const { leads } = usePitchline();
+  const { leads, signOut } = usePitchline();
   const { setCommandOpen, setHelpOpen } = useUI();
 
   const followUps = getFollowUps(leads).actionable;
@@ -112,9 +113,18 @@ export function Sidebar() {
         </button>
       </div>
 
-      <div className="border-t border-sidebar-border px-5 py-3">
-        <div className="text-xs font-medium text-foreground">Trendtactics Digital</div>
-        <div className="text-[11px] text-muted-foreground">Operator console</div>
+      <div className="border-t border-sidebar-border px-5 py-3 flex items-center justify-between">
+        <div>
+          <div className="text-xs font-medium text-foreground">Trendtactics Digital</div>
+          <div className="text-[11px] text-muted-foreground">Operator console</div>
+        </div>
+        <button
+          onClick={signOut}
+          className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+          title="Sign Out"
+        >
+          <LogOut className="h-4 w-4" />
+        </button>
       </div>
     </aside>
   );
