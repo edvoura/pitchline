@@ -278,7 +278,7 @@ function Metric({
   label: string;
   value: number | string;
   sub?: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   token: string;
   to: string;
 }) {
@@ -304,7 +304,7 @@ function QueueRow({
   to,
   token,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   label: string;
   count: number;
   to: string;
