@@ -6,38 +6,27 @@ import type { Lead, PromptDirection, Provider } from "./types";
  */
 export function compilePrompt(lead: Lead, d: PromptDirection): string {
   const sections = d.sections.length ? d.sections.join(", ") : "Hero, CTA";
-  return `# WEBSITE DEMO BRIEF — ${lead.business}
+  const goal = `Create a high-converting website for a ${lead.industry} business located in ${lead.location}, optimizing for the primary call-to-action: "${d.ctaFocus || "Book / Contact"}".`;
 
-## TARGET
-Business: ${lead.business}
-Industry: ${lead.industry}
-Location: ${lead.location}
+  return `BUSINESS: ${lead.business}, ${lead.industry}, ${lead.location}
+GOAL: ${goal}
+MOOD: ${d.mood || "—"}
+LAYOUT: ${d.layoutStyle || "—"}
+TYPOGRAPHY: ${d.typography || "—"}
+COLOR: ${d.colorDirection || "—"}
+ANIMATION: ${d.animation}
+VISUAL REFERENCE: ${d.visualReference || "—"}
 
-## DIRECTION
-Mood: ${d.mood || "—"}
-Layout: ${d.layoutStyle || "—"}
-Typography: ${d.typography || "—"}
-Color: ${d.colorDirection || "—"}
-Animation: ${d.animation}
-Visual reference: ${d.visualReference || "—"}
-
-## SECTIONS
+SECTIONS (in order):
 ${sections}
 
-## PRIMARY CTA
-${d.ctaFocus || "Book / Contact"}
+CTA FOCUS: ${d.ctaFocus || "Book / Contact"}
 
-## SNAP COPY
-Story hook: ${d.story || "—"}
+COPY DIRECTION (SNAP):
+Story: ${d.story || "—"}
 Need: ${d.need || "—"}
 Answer: ${d.answer || "—"}
-Proof point: ${d.proof || "—"}
-
-## INSTRUCTIONS
-Build a single-page, responsive marketing website for the business above.
-Honor the direction exactly. Use the SNAP copy to write the hero and body
-copy. Make the primary CTA the most prominent action on the page. Output
-production-ready, self-contained HTML + CSS.`;
+Proof: ${d.proof || "—"}`;
 }
 
 const MOOD_THEMES: Record<string, { bg: string; fg: string; accent: string; muted: string; card: string }> = {
