@@ -85,79 +85,29 @@ async function run() {
     const data = await res.json();
 
     if (data.status === "OVER_QUERY_LIMIT") {
-      console.error("[Places] Google API rate-limit reached. Stopping job.");
+      console.error("[Places] Google API rate-limit reached. Stopping job gracefully.");
       return;
     }
     if (data.status === "REQUEST_DENIED") {
-      console.warn(`[Places] Google API Key is invalid or denied. Falling back to test candidates list to check crawler and Supabase sync...`);
-      candidates = [
-        {
-          placeId: "mock_place_ikeja_1",
-          businessName: "Ikeja Dental Clinic",
-          address: "12 Allen Ave, Ikeja, Lagos, Nigeria",
-          phone: "+234 1 234 5678",
-          website: "https://www.broadwaydentalclinic.com",
-          raw: { mock: true }
-        },
-        {
-          placeId: "mock_place_ikeja_2",
-          businessName: "Broadway Dentist Office",
-          address: "45 Toyin St, Ikeja, Lagos, Nigeria",
-          phone: "+234 802 345 6789",
-          website: "https://www.lakesidedentalsolutions.com",
-          raw: { mock: true }
-        },
-        {
-          placeId: "mock_place_ikeja_3",
-          businessName: "Lagos Dental Care Center",
-          address: "Suite 4, Ikeja Plaza, Mobolaji Bank Anthony Way, Ikeja",
-          phone: "+234 812 345 6789",
-          website: "",
-          raw: { mock: true }
-        }
-      ].slice(0, MAX_PLACES);
-    } else {
-      const results = data.results || [];
-      console.log(`[Places] Found ${results.length} total matches.`);
-
-      // Slice down to our limit
-      candidates = results.slice(0, MAX_PLACES).map((item) => ({
-        placeId: item.place_id,
-        businessName: item.name,
-        address: item.formatted_address || "—",
-        phone: item.formatted_phone_number || "",
-        website: item.website || "", // Places TextSearch response may have website, if not empty
-        raw: item
-      }));
+      console.error(`[Places] Request denied: ${data.error_message || "Invalid API key"}. Stopping job.`);
+      return;
     }
+
+    const results = data.results || [];
+    console.log(`[Places] Found ${results.length} total matches.`);
+
+    // Slice down to our limit
+    candidates = results.slice(0, MAX_PLACES).map((item) => ({
+      placeId: item.place_id,
+      businessName: item.name,
+      address: item.formatted_address || "—",
+      phone: item.formatted_phone_number || "",
+      website: item.website || "",
+      raw: item
+    }));
   } catch (err) {
-    console.warn(`[Places] Failed to fetch places (${err.message}). Falling back to test candidates list...`);
-    candidates = [
-      {
-        placeId: "mock_place_ikeja_1",
-        businessName: "Ikeja Dental Clinic",
-        address: "12 Allen Ave, Ikeja, Lagos, Nigeria",
-        phone: "+234 1 234 5678",
-        website: "https://www.broadwaydentalclinic.com",
-        raw: { mock: true }
-      },
-      {
-        placeId: "mock_place_ikeja_2",
-        businessName: "Broadway Dentist Office",
-        address: "45 Toyin St, Ikeja, Lagos, Nigeria",
-        phone: "+234 802 345 6789",
-        website: "https://www.lakesidedentalsolutions.com",
-        raw: { mock: true }
-      },
-      {
-        placeId: "mock_place_ikeja_3",
-        businessName: "Lagos Dental Care Center",
-        address: "Suite 4, Ikeja Plaza, Mobolaji Bank Anthony Way, Ikeja",
-        phone: "+234 812 345 6789",
-        website: "",
-        raw: { mock: true }
-      }
-    ].slice(0, MAX_PLACES);
+    console.error("[Places] Failed to fetch places:", err.message);
+    return;
   }
 
   if (candidates.length === 0) {

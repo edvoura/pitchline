@@ -16,7 +16,7 @@ import type {
   Stage,
   Template,
 } from "./types";
-import { MOCK_LEADS, MOCK_TEMPLATES } from "./mock";
+import { STARTER_TEMPLATES } from "./mock";
 import { compilePrompt } from "./generate";
 import { supabase } from "../supabase";
 import { generateDemoFn } from "./server-fns";
@@ -252,7 +252,7 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
         if (dbTemplates.length === 0) {
           const { data } = await supabase
             .from("templates")
-            .insert(MOCK_TEMPLATES.map(mapTemplateToDb))
+            .insert(STARTER_TEMPLATES.map(mapTemplateToDb))
             .select();
           if (data) dbTemplates = data.map(mapTemplateFromDb);
         }
