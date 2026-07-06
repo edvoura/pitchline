@@ -36,8 +36,8 @@ jobs:
 
       - name: Run Scraper Job
         env:
-          GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY || secrets.GEMINI_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.VITE_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           MAILBOXLAYER_API_KEY: ${{ secrets.MAILBOXLAYER_API_KEY }}
           QUERY: ${{ github.event.inputs.query || 'dentists in Ikeja' }}
