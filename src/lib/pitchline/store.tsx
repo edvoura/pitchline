@@ -83,6 +83,9 @@ function mapLeadFromDb(db: any): Lead {
     source: db.source || "manual",
     sourcePlaceId: db.source_place_id || null,
     rawScrape: db.raw_scrape || null,
+    phone: db.phone || null,
+    preferredChannel: db.preferred_channel || "email",
+    whatsappLink: db.whatsapp_link || null,
   };
 }
 
@@ -104,6 +107,9 @@ function mapLeadToDb(l: Partial<Lead>): any {
   if (l.source !== undefined) out.source = l.source;
   if (l.sourcePlaceId !== undefined) out.source_place_id = l.sourcePlaceId;
   if (l.rawScrape !== undefined) out.raw_scrape = l.rawScrape;
+  if (l.phone !== undefined) out.phone = l.phone;
+  if (l.preferredChannel !== undefined) out.preferred_channel = l.preferredChannel;
+  if (l.whatsappLink !== undefined) out.whatsapp_link = l.whatsappLink;
   return out;
 }
 

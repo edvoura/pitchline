@@ -31,6 +31,9 @@ export interface Lead {
   source?: "manual" | "scraper";
   sourcePlaceId?: string | null;
   rawScrape?: any | null;
+  phone?: string | null;
+  preferredChannel?: string | null;
+  whatsappLink?: string | null;
 }
 
 export interface PromptDirection {
