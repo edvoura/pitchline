@@ -1,5 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import {
+  LayoutDashboard,
   LayoutList,
   SlidersHorizontal,
   MonitorPlay,
