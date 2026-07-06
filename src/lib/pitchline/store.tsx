@@ -30,6 +30,7 @@ interface PitchlineState {
   prompts: Record<string, PromptRecord>;
   demos: Record<string, DemoRecord>;
   activeLeadId: string | null;
+  generationStage: "planning" | "building" | null;
 }
 
 interface PitchlineContextValue extends PitchlineState {
@@ -216,6 +217,7 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
     prompts: {},
     demos: {},
     activeLeadId: null,
+    generationStage: null,
   });
 
   const [session, setSession] = useState<any>(null);
@@ -482,10 +484,13 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
 
         if (clientKey) {
           console.log(`[Pitchline] Running client-side generation using ${prompt.provider}...`);
+          const onStageChange = (stage: "planning" | "building") => {
+            setState((s) => ({ ...s, generationStage: stage }));
+          };
           if (prompt.provider === "claude") {
-            result = await generateClaudeDemo(prompt.compiled, null, []);
+            result = await generateClaudeDemo(prompt.compiled, null, [], onStageChange);
           } else {
-            result = await generateGeminiDemo(prompt.compiled, null, []);
+            result = await generateGeminiDemo(prompt.compiled, null, [], onStageChange);
           }
         } else {
           console.log("[Pitchline] Running server-side generation...");
@@ -523,6 +528,7 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
           leads: s.leads.map((l) =>
             l.id === leadId ? { ...l, stage: "demo_built" } : l,
           ),
+          generationStage: null,
         }));
 
         return newDemo;
@@ -537,6 +543,7 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
             leads: s.leads.map((l) =>
               l.id === leadId ? { ...l, stage: lead.stage } : l,
             ),
+            generationStage: null,
           };
         });
         const errorMsg = err instanceof Error ? err.message : String(err);
@@ -565,10 +572,13 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
 
         if (clientKey) {
           console.log(`[Pitchline] Running client-side refinement using ${prompt.provider}...`);
+          const onStageChange = (stage: "planning" | "building") => {
+            setState((s) => ({ ...s, generationStage: stage }));
+          };
           if (prompt.provider === "claude") {
-            result = await generateClaudeDemo(prompt.compiled, existing.html, refinements);
+            result = await generateClaudeDemo(prompt.compiled, existing.html, refinements, onStageChange);
           } else {
-            result = await generateGeminiDemo(prompt.compiled, existing.html, refinements);
+            result = await generateGeminiDemo(prompt.compiled, existing.html, refinements, onStageChange);
           }
         } else {
           console.log("[Pitchline] Running server-side refinement...");
@@ -596,10 +606,12 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
         setState((s) => ({
           ...s,
           demos: { ...s.demos, [leadId]: newDemo },
+          generationStage: null,
         }));
 
         return newDemo;
       } catch (err) {
+        setState((s) => ({ ...s, generationStage: null }));
         const errorMsg = err instanceof Error ? err.message : String(err);
         toast.error(`Refinement Failed: ${errorMsg}`);
         console.error("Error refining demo HTML:", err);

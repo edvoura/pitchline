@@ -25,7 +25,7 @@ export const Route = createFileRoute("/preview")({
 });
 
 function PreviewPage() {
-  const { leads, demos, activeLeadId, setActiveLead, generateDemo, refineDemo, markReady, setStage } =
+  const { leads, demos, activeLeadId, setActiveLead, generateDemo, refineDemo, markReady, setStage, generationStage } =
     usePitchline();
   const navigate = useNavigate();
 
@@ -36,7 +36,7 @@ function PreviewPage() {
   const [refineText, setRefineText] = useState("");
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
-  const isGenerating = busy || (demo && demo.html === "<!-- generating -->");
+  const isGenerating = busy || !!(demo && demo.html === "<!-- generating -->") || generationStage !== null;
   const [showChecklist, setShowChecklist] = useState(true);
 
   const checklistConfig = [
@@ -302,10 +302,33 @@ function PreviewPage() {
         {/* iframe */}
         <div className="relative flex-1 overflow-hidden rounded-lg border border-border bg-white">
           {isGenerating && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur-sm">
-              <div className="flex items-center gap-2 text-sm text-foreground">
-                <RefreshCw className="h-4 w-4 animate-spin text-primary" />
-                {demo.provider === "claude" ? "Claude" : "Gemini"} is generating…
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/70 backdrop-blur-sm">
+              <div className="flex flex-col items-center gap-3">
+                <div className="relative">
+                  <div className="h-10 w-10 rounded-full border-2 border-primary/30" />
+                  <div className="absolute inset-0 h-10 w-10 animate-spin rounded-full border-2 border-transparent border-t-primary" />
+                </div>
+                <div className="text-sm font-medium text-foreground">
+                  {generationStage === "planning"
+                    ? "Planning layout & structure…"
+                    : generationStage === "building"
+                      ? "Building interactive demo…"
+                      : `${demo.provider === "claude" ? "Claude" : "Gemini"} is generating…`}
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  {generationStage === "planning" && (
+                    <>
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                      Stage 1 of 2
+                    </>
+                  )}
+                  {generationStage === "building" && (
+                    <>
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
+                      Stage 2 of 2 — this may take 20–40 seconds
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           )}

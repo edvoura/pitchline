@@ -18,6 +18,7 @@ export async function generateGeminiDemo(
   prompt: string,
   currentHtml?: string | null,
   refinements?: string[],
+  onStageChange?: (stage: "planning" | "building") => void,
 ): Promise<{ html: string; tokensUsed: number; generationMs: number }> {
   const apiKey = (typeof process !== "undefined" ? process.env.GEMINI_API_KEY : undefined) || import.meta.env.VITE_GEMINI_API_KEY;
   if (!apiKey) {
@@ -25,28 +26,78 @@ export async function generateGeminiDemo(
   }
 
   const start = Date.now();
+  let tokensUsed = 0;
 
-  const systemInstruction = `You are an expert web designer/developer building a single-page website demo. Follow these rules regardless of how much detail is given below:
-- Every section must have one clear purpose (Hero: immediate clarity + hook. Features: outcome-framed, not a feature list. Social proof: trust transfer. CTA: one unambiguous action. Closing: reinforce feeling.)
+  const planSystemInstruction = `You are an expert web strategist and designer.
+Given a prompt brief for a landing page, output a structured JSON plan for the website layout, content outline, aesthetics, and interactive elements.
+Do not include any conversational text or markdown code blocks (like \`\`\`json). Output ONLY the raw JSON object.
+Use this exact JSON shape:
+{
+  "sections": [{"name": "Hero | Features | Social Proof | CTA | Closing", "purpose": "Description of section goals and content"}],
+  "copyOutline": {"story": "SNAP Story hook", "need": "SNAP Need focus", "answer": "SNAP Answer details", "proof": "SNAP Proof proofpoints"},
+  "colorPalette": ["Tailwind color codes e.g. bg-slate-900, text-emerald-400"],
+  "typography": "font-sans | font-serif | font-mono",
+  "interactiveElements": ["accordions", "tabs", "mobile-nav", "modals", "reveals"]
+}`;
+
+  const buildSystemInstruction = `You are an expert web designer/developer building a single-page website demo.
+Follow these rules regardless of how much detail is given below:
+- EVERY section must have one clear purpose per the design framework.
 - Write copy using Story -> Need -> Answer -> Proof (SNAP framework). Never write like a marketer — write like someone who deeply understands this exact audience.
-- Respect the stated mood precisely — do not default to generic "modern clean" design if a specific mood (luxury, futuristic, dark, playful, etc.) is given.
-- BASELINE QUALITY BAR (apply even if not explicitly requested):
-  1. Include tasteful micro-interactions: hover states on buttons/cards, smooth scroll-triggered fade-ins on section entry, subtle transitions — never a static, flat page with zero motion.
-  2. Visual hierarchy must be obvious at a glance: clear spacing rhythm, intentional contrast, no cramped or uniform-looking blocks of text.
-  3. Never default to a generic template look (centered text + stock gradient + Bootstrap-like buttons). Choose a specific point of view.
-  4. Every demo should look like it took a designer a day, not like a form was auto-filled into a template.
-  5. If the brief indicates a mobile app or software concept, build a gorgeous interactive smartphone UI viewport container (using clean CSS device frame mockups) right in the center of the viewport, rather than just a standard desktop layout.
+- Style the page beautifully using Tailwind CSS. Use the Tailwind CDN:
+  <script src="https://cdn.tailwindcss.com"></script>
+- Use Alpine.js for ALL interactive components (tabs, accordions, mobile nav toggle, modals, reveals, etc.). Load Alpine via CDN:
+  <script src="https://unpkg.com/alpinejs" defer></script>
+- Do not produce static markup with no interactive elements. A premium demo must have working micro-interactions, hover states on cards/buttons, smooth scroll reveals, and toggle states.
+- BASELINE QUALITY BAR:
+  1. Spacing rhythm, visual hierarchy, and contrast must be premium and obvious at a glance.
+  2. If the brief indicates a mobile app or software concept, build a gorgeous interactive smartphone UI viewport container (using clean CSS device frame mockups) right in the center of the viewport, rather than just a standard desktop layout.
 - Output ONLY valid, raw, production-ready, self-contained HTML + CSS for the requested website. Do not include markdown code block backticks (like \`\`\`html) or conversational text before or after the code. Start directly with <!DOCTYPE html>.`;
+
+  let planText = "";
+  if (!currentHtml) {
+    if (onStageChange) onStageChange("planning");
+    // Stage 1: Planning
+    const planUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const planResponse = await fetch(planUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: `${planSystemInstruction}\n\nPrompt: ${prompt}`,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          maxOutputTokens: 1500,
+          temperature: 0.2,
+        },
+      }),
+    });
+
+    if (planResponse.ok) {
+      const planPayload = await planResponse.json();
+      planText = planPayload.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      tokensUsed += planPayload.usageMetadata?.totalTokenCount || 0;
+    }
+  }
+
+  // Stage 2: Building
+  if (onStageChange) onStageChange("building");
 
   let promptText = prompt;
   if (currentHtml) {
     promptText = `Here is the current HTML code of the website:\n\n${currentHtml}\n\nApply the following refinements to the design. Do not explain anything; output the revised self-contained HTML code directly:\n\n${refinements
       ?.map((r, i) => `${i + 1}. ${r}`)
       .join("\n")}`;
-  } else if (refinements && refinements.length > 0) {
-    promptText += `\n\n## USER REFINEMENTS (Apply these updates):\n${refinements
-      .map((r, i) => `${i + 1}. ${r}`)
-      .join("\n")}`;
+  } else {
+    promptText = `Prompt Brief: ${prompt}\n\nDesign Plan (follow this layout and structure):\n${planText}`;
   }
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
@@ -61,7 +112,7 @@ export async function generateGeminiDemo(
         {
           parts: [
             {
-              text: `${systemInstruction}\n\n${promptText}`,
+              text: `${buildSystemInstruction}\n\n${promptText}`,
             },
           ],
         },
@@ -81,7 +132,7 @@ export async function generateGeminiDemo(
   const payload = await response.json();
   const rawText = payload.candidates?.[0]?.content?.parts?.[0]?.text || "";
   const html = cleanHtml(rawText);
-  const tokensUsed = payload.usageMetadata?.totalTokenCount || 0;
+  tokensUsed += payload.usageMetadata?.totalTokenCount || 0;
   const generationMs = Date.now() - start;
 
   return { html, tokensUsed, generationMs };
