@@ -468,9 +468,11 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
 
       try {
         const result = await generateDemoFn({
-          compiledPrompt: prompt.compiled,
-          provider: prompt.provider,
-          refinements: [],
+          data: {
+            compiledPrompt: prompt.compiled,
+            provider: prompt.provider,
+            refinements: [],
+          }
         });
 
         const newDemo: DemoRecord = {
@@ -534,10 +536,12 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
 
       try {
         const result = await generateDemoFn({
-          compiledPrompt: prompt.compiled,
-          provider: prompt.provider,
-          refinements,
-          currentHtml: existing.html,
+          data: {
+            compiledPrompt: prompt.compiled,
+            provider: prompt.provider,
+            refinements,
+            currentHtml: existing.html,
+          }
         });
 
         const newDemo: DemoRecord = {
