@@ -3,7 +3,11 @@ import { CheerioCrawler } from "crawlee";
 import dotenv from "dotenv";
 import { buildQueryList } from "./matrix.js";
 
+import path from "path";
+
 dotenv.config();
+dotenv.config({ path: path.resolve(process.cwd(), "../.env") });
+dotenv.config({ path: path.resolve(process.cwd(), "../.env.local") });
 
 const GOOGLE_PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY || process.env.PLACES_API_KEY;
 const APIFY_API_KEY = process.env.APIFY_API_KEY || process.env.apify_api;
