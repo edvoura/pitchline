@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  LayoutDashboard,
   LayoutList,
   SlidersHorizontal,
   MonitorPlay,
@@ -12,8 +13,10 @@ import {
 import { cn } from "@/lib/utils";
 import { usePitchline } from "@/lib/pitchline/store";
 import { useUI } from "@/lib/pitchline/ui";
+import { getFollowUps } from "@/lib/pitchline/followups";
 
 const NAV = [
+  { to: "/", label: "Dashboard", icon: LayoutDashboard, key: "0" },
   { to: "/leads", label: "Leads", icon: LayoutList, key: "1" },
   { to: "/generator", label: "Prompt Generator", icon: SlidersHorizontal, key: "2" },
   { to: "/preview", label: "Demo Preview", icon: MonitorPlay, key: "3" },
