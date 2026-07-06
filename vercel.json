@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "functions": {
+    "api/scrape.py": {
+      "runtime": "@vercel/python@4.3.0"
+    },
+    "api/health.py": {
+      "runtime": "@vercel/python@4.3.0"
+    }
+  }
+}
