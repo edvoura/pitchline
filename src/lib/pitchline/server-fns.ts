@@ -16,9 +16,14 @@ interface GenerateDemoResult {
 }
 
 export const generateDemoFn = createServerFn({ method: "POST" })
-  .validator((data: GenerateDemoInput) => data)
-  .handler(async ({ data }): Promise<GenerateDemoResult> => {
-    const { compiledPrompt, provider, refinements, currentHtml } = data;
+  .validator((data: any) => data)
+  .handler(async (ctx): Promise<GenerateDemoResult> => {
+    const input = ctx && ctx.data ? ctx.data : ctx;
+    const { compiledPrompt, provider, refinements = [], currentHtml } = input || {};
+
+    if (!compiledPrompt || !provider) {
+      throw new Error("Invalid or missing 'compiledPrompt' or 'provider' fields.");
+    }
 
     if (provider === "claude") {
       return generateClaudeDemo(compiledPrompt, currentHtml, refinements);
@@ -36,8 +41,9 @@ interface SendOutreachInput {
 }
 
 export const sendOutreachEmailFn = createServerFn({ method: "POST" })
-  .validator((data: SendOutreachInput) => data)
-  .handler(async ({ data }) => {
+  .validator((data: any) => data)
+  .handler(async (ctx) => {
+    const input = ctx && ctx.data ? ctx.data : ctx;
     const { sendOutreachEmail } = await import("../providers/email");
-    return sendOutreachEmail(data);
+    return sendOutreachEmail(input);
   });
