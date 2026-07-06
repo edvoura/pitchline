@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { ExternalLink, CalendarPlus, LayoutList, Columns3 } from "lucide-react";
 import { PageHeader } from "@/components/pitchline/PageHeader";
@@ -15,6 +15,7 @@ type SortKey = "stage" | "date";
 
 function TrackerPage() {
   const { leads, demos, updateLead, setStage, setActiveLead } = usePitchline();
+  const navigate = useNavigate();
 
   const [view, setView] = useState<"table" | "kanban">("table");
   const [stageFilter, setStageFilter] = useState<Stage | "all">("all");
@@ -130,7 +131,10 @@ function TrackerPage() {
                     <td className="px-3 py-3">
                       {demos[l.id] ? (
                         <button
-                          onClick={() => setActiveLead(l.id)}
+                          onClick={() => {
+                            setActiveLead(l.id);
+                            navigate({ to: "/preview" });
+                          }}
                           className="flex items-center gap-1 text-xs text-primary hover:underline"
                         >
                           View demo <ExternalLink className="h-3 w-3" />
