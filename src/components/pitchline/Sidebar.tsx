@@ -29,6 +29,8 @@ export function Sidebar() {
   const { leads } = usePitchline();
   const { setCommandOpen, setHelpOpen } = useUI();
 
+  const followUps = getFollowUps(leads).actionable;
+
   const counts = {
     "/leads": leads.filter((l) => l.qualification === "pending").length,
     "/tracker": leads.filter((l) =>
