@@ -50,6 +50,7 @@ export interface PromptDirection {
   visualReference: string;
   sections: string[];
   ctaFocus: string;
+  heroStyle?: "static" | "carousel";
   // SNAP copy
   story: string;
   need: string;

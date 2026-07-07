@@ -17,7 +17,7 @@ import type {
   Template,
 } from "./types";
 import { STARTER_TEMPLATES } from "./mock";
-import { compilePrompt } from "./generate";
+import { compilePrompt, fetchStockImages } from "./generate";
 import { supabase } from "../supabase";
 import { generateDemoFn } from "./server-fns";
 import { generateGeminiDemo } from "../providers/gemini";
@@ -135,6 +135,7 @@ function mapPromptFromDb(db: any): PromptRecord {
     visualReference: db.visual_reference || "",
     sections: db.sections || [],
     ctaFocus: db.cta_focus || "",
+    heroStyle: db.hero_style || "static",
     story: db.story || "",
     need: db.need || "",
     answer: db.answer || "",
@@ -156,6 +157,7 @@ function mapPromptToDb(p: PromptRecord): any {
     visual_reference: p.visualReference,
     sections: p.sections,
     cta_focus: p.ctaFocus,
+    hero_style: p.heroStyle || "static",
     story: p.story,
     need: p.need,
     answer: p.answer,
@@ -226,7 +228,7 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
     templates: [],
     prompts: {},
     demos: {},
-    activeLeadId: null,
+    activeLeadId: typeof window !== "undefined" ? localStorage.getItem("pitchline_active_lead_id") : null,
     generationStage: null,
   });
 
@@ -307,6 +309,11 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
 
   const setActiveLead = useCallback((id: string | null) => {
     setState((s) => ({ ...s, activeLeadId: id }));
+    if (id) {
+      localStorage.setItem("pitchline_active_lead_id", id);
+    } else {
+      localStorage.removeItem("pitchline_active_lead_id");
+    }
   }, []);
 
   const addLeads = useCallback(async (leads: Lead[]) => {
@@ -435,7 +442,11 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
   const compileFor = useCallback<PitchlineContextValue["compileFor"]>(
     async (leadId, d, provider) => {
       const lead = state.leads.find((l) => l.id === leadId);
-      const compiled = lead ? compilePrompt(lead, d) : "";
+      let images: string[] = [];
+      if (lead) {
+        images = await fetchStockImages(lead.industry, d.mood);
+      }
+      const compiled = lead ? compilePrompt(lead, d, images) : "";
       const record: PromptRecord = {
         ...d,
         leadId,

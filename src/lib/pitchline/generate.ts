@@ -4,7 +4,7 @@ import type { Lead, PromptDirection, Provider } from "./types";
  * Assemble the structured "master template" prompt from a lead + direction.
  * Returns a deterministic, copy-pasteable block.
  */
-export function compilePrompt(lead: Lead, d: PromptDirection): string {
+export function compilePrompt(lead: Lead, d: PromptDirection, images: string[] = []): string {
   const ind = (lead.industry || "").toLowerCase();
 
   // Industry-guided defaults (Option 2) if operator leaves fields blank
@@ -41,11 +41,32 @@ export function compilePrompt(lead: Lead, d: PromptDirection): string {
   const color = d.colorDirection || defaultColor;
   const animation = d.animation || defaultAnimation;
   const visualRef = d.visualReference || "Linear / Apple aesthetic";
+  const heroStyle = d.heroStyle || "static";
 
   const sections = d.sections.length ? d.sections.join(", ") : "Hero, Features, Social Proof, CTA, Closing";
   const ctaFocus = d.ctaFocus || "Book / Contact";
 
   const goal = `Create a high-converting digital presence concept (either a full-desktop landing page or a beautiful mobile web app concept enclosed in an elegant smartphone mockup device frame if appropriate for this business) for a ${lead.industry} business located in ${lead.location}, optimizing for the primary action: "${ctaFocus}".`;
+
+  const heroStyleInstruction = heroStyle === "carousel"
+    ? `HERO STYLE: carousel. You MUST build an Alpine.js-powered image carousel using 2-3 of the supplied AVAILABLE IMAGES, with clear previous/next chevron buttons, indicators, and automatic slide rotation (auto-rotate).`
+    : `HERO STYLE: static. Use a single beautiful hero image layout from the supplied AVAILABLE IMAGES.`;
+
+  const sectionRules = `
+REQUIRED SECTIONS SPECIFICATIONS (build as a single-page HTML file with nav anchors):
+- Sticky/fixed navigation bar with links pointing to #home, #about, #services, #contact (and #blog if appropriate for this industry), supporting smooth scroll behavior.
+- Home / Hero (#home): Featuring the business name, hook (from SNAP Story/Need), primary CTA, and a background/hero image layout matching the requested HERO STYLE.
+- About (#about): Story of credibility, based on SNAP copy Story.
+- Services / Features (#services): Outcome-framed list of what the business does (reframe features around customer benefits).
+- Blog / Insights (#blog): Optional (only if appropriate for this industry e.g. consultancy, creative agency. Do NOT include for a dentist or local medical clinic). Show 2-3 preview post cards.
+- Contact (#contact): Details, custom form, phone/WhatsApp CTA (preferred channel: ${lead.preferredChannel || 'email'}).
+`;
+
+  const imagesBlock = images.length > 0
+    ? `AVAILABLE IMAGES (use these exact URLs in <img> tags — do not invent URLs):
+` + images.map((img, idx) => `${idx + 1}. ${img}`).join("\n") + `
+- Only use image URLs provided in AVAILABLE IMAGES. Never invent an image URL — an invented URL will break in the browser. Always include attribution in the footer: "Photos via Pexels" if Pexels images are used (or "Photos via Unsplash" if fallback images are used).`
+    : `AVAILABLE IMAGES: none (use CSS/gradients or placeholders instead of invented URLs).`;
 
   return `BUSINESS: ${lead.business}, ${lead.industry}, ${lead.location}
 GOAL: ${goal}
@@ -55,13 +76,20 @@ TYPOGRAPHY: ${typography}
 COLOR: ${color}
 ANIMATION: ${animation}
 VISUAL REFERENCE: ${visualRef}
-${lead.brandSource && lead.brandSource !== 'none' ? `
-BRAND CONTEXT (use these instead of generic assumptions):
+HERO STYLE: ${heroStyle}
+
+${lead.brandSource && lead.brandSource !== 'none' ? `BRAND CONTEXT (use these instead of generic assumptions):
 Colors: ${(lead.brandColors || []).join(', ') || 'not available'}
 Logo: ${lead.brandLogoUrl || 'none — use a clean text-based wordmark in the primary brand color'}
 Fonts: ${(lead.brandFonts || []).join(', ') || 'not available — use direction typography'}
 Tone: ${lead.brandToneSummary || 'not available'}
-NOTE: When brand colors/fonts are present, they take precedence over the Mood/Typography/Color direction above.` : ''}
+NOTE: When brand colors/fonts are present, they take precedence over the Mood/Typography/Color direction above.
+` : ''}
+${imagesBlock}
+
+${sectionRules}
+
+${heroStyleInstruction}
 
 SECTIONS (in order):
 ${sections}
@@ -73,6 +101,76 @@ Story: ${d.story || `As a visitor looking for quality ${lead.industry} in ${lead
 Need: ${d.need || `Finding reliable, top-tier ${lead.industry} services can be challenging.`}
 Answer: ${d.answer || `${lead.business} delivers exceptional quality tailored to your needs.`}
 Proof: ${d.proof || `Trusted by clients across ${lead.location} with proven results.`}`;
+}
+
+export async function fetchStockImages(industry: string, mood: string): Promise<string[]> {
+  const pexelsKey = import.meta.env.VITE_PEXELS_API_KEY || "";
+  const query = `${mood} ${industry}`.trim();
+  
+  if (pexelsKey) {
+    try {
+      const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=5`;
+      const res = await fetch(url, {
+        headers: {
+          Authorization: pexelsKey,
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.photos && data.photos.length > 0) {
+          return data.photos.map((p: any) => p.src.large);
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to fetch images from Pexels:", err);
+    }
+  }
+
+  // Fallback to high-quality static Unsplash URLs
+  const ind = industry.toLowerCase();
+  if (ind.includes("dent") || ind.includes("clinic") || ind.includes("health") || ind.includes("medic")) {
+    return [
+      "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1606811971618-4486d14f3f99?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1598256989800-fe5f95da9787?auto=format&fit=crop&w=800&q=80"
+    ];
+  }
+  if (ind.includes("rest") || ind.includes("cafe") || ind.includes("food") || ind.includes("bake") || ind.includes("coffee") || ind.includes("bakery")) {
+    return [
+      "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1559925393-8be0ec4767c8?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1498654896293-37aacf113fd9?auto=format&fit=crop&w=800&q=80"
+    ];
+  }
+  if (ind.includes("saas") || ind.includes("tech") || ind.includes("soft") || ind.includes("app") || ind.includes("agency") || ind.includes("consult")) {
+    return [
+      "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80"
+    ];
+  }
+  if (ind.includes("well") || ind.includes("spa") || ind.includes("yoga") || ind.includes("care") || ind.includes("salon") || ind.includes("beauty")) {
+    return [
+      "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1519699047748-de8e457a634e?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1600334129128-685c5582fd35?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?auto=format&fit=crop&w=800&q=80"
+    ];
+  }
+  return [
+    "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=800&q=80"
+  ];
 }
 
 const MOOD_THEMES: Record<string, { bg: string; fg: string; accent: string; muted: string; card: string }> = {

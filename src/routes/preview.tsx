@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   RefreshCw,
   Wand2,
@@ -18,6 +18,7 @@ import { usePitchline } from "@/lib/pitchline/store";
 import { sendOutreachEmailFn } from "@/lib/pitchline/server-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/preview")({
   head: () => ({ meta: [{ title: "Demo Preview — Pitchline" }] }),
@@ -29,9 +30,109 @@ function PreviewPage() {
     usePitchline();
   const navigate = useNavigate();
 
+  const [localDemo, setLocalDemo] = useState<any>(null);
+  const [localLead, setLocalLead] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const currentLeadId = activeLeadId || (typeof window !== "undefined" ? localStorage.getItem("pitchline_active_lead_id") : null);
+
+  useEffect(() => {
+    if (!currentLeadId) {
+      setLoading(false);
+      return;
+    }
+
+    const contextLead = leads.find((l) => l.id === currentLeadId);
+    if (contextLead) {
+      setLocalLead(contextLead);
+    }
+
+    const contextDemo = demos[currentLeadId];
+    if (contextDemo) {
+      setLocalDemo(contextDemo);
+      setLoading(false);
+    }
+
+    async function fetchFromDb() {
+      try {
+        const [leadRes, demoRes] = await Promise.all([
+          supabase.from("leads").select("*").eq("id", currentLeadId).maybeSingle(),
+          supabase.from("demos").select("*").eq("lead_id", currentLeadId).maybeSingle()
+        ]);
+
+        if (leadRes.data) {
+          const mappedLead = {
+            id: leadRes.data.id,
+            business: leadRes.data.business,
+            industry: leadRes.data.industry,
+            location: leadRes.data.location,
+            email: leadRes.data.email || "",
+            hasWebsite: !!leadRes.data.has_website,
+            emailStatus: leadRes.data.email_status || "unknown",
+            qualification: leadRes.data.qualification || "pending",
+            stage: leadRes.data.stage || "scraped",
+            dateScraped: leadRes.data.date_scraped || "",
+            dateSent: leadRes.data.date_sent || undefined,
+            notes: leadRes.data.notes || "",
+            followUp: leadRes.data.follow_up || undefined,
+            source: leadRes.data.source || "manual",
+            sourcePlaceId: leadRes.data.source_place_id || null,
+            rawScrape: leadRes.data.raw_scrape || null,
+            phone: leadRes.data.phone || null,
+            preferredChannel: leadRes.data.preferred_channel || "email",
+            whatsappLink: leadRes.data.whatsapp_link || null,
+            brandColors: leadRes.data.brand_colors || null,
+            brandLogoUrl: leadRes.data.brand_logo_url || null,
+            brandFonts: leadRes.data.brand_fonts || null,
+            brandToneSummary: leadRes.data.brand_tone_summary || null,
+            brandSource: leadRes.data.brand_source || "none",
+          };
+          setLocalLead(mappedLead);
+        }
+
+        if (demoRes.data) {
+          const mappedDemo = {
+            leadId: demoRes.data.lead_id,
+            html: demoRes.data.html,
+            provider: demoRes.data.provider,
+            refinements: demoRes.data.refinements || [],
+            createdAt: demoRes.data.created_at,
+            ready: !!demoRes.data.ready,
+            tokensUsed: demoRes.data.tokens_used || null,
+            generationMs: demoRes.data.generation_ms || null,
+          };
+          setLocalDemo(mappedDemo);
+        } else {
+          setLocalDemo(null);
+        }
+      } catch (err) {
+        console.error("Error loading lead/demo on mount:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchFromDb();
+  }, [currentLeadId, leads, demos]);
+
+  useEffect(() => {
+    if (currentLeadId && demos[currentLeadId]) {
+      setLocalDemo(demos[currentLeadId]);
+    }
+  }, [demos, currentLeadId]);
+
+  useEffect(() => {
+    if (currentLeadId) {
+      const found = leads.find((l) => l.id === currentLeadId);
+      if (found) {
+        setLocalLead(found);
+      }
+    }
+  }, [leads, currentLeadId]);
+
   const withDemos = leads.filter((l) => demos[l.id]);
-  const lead = leads.find((l) => l.id === activeLeadId && demos[l.id]) ?? withDemos[0] ?? null;
-  const demo = lead ? demos[lead.id] : null;
+  const lead = localLead || leads.find((l) => l.id === currentLeadId) || withDemos[0] || null;
+  const demo = localDemo || (lead ? demos[lead.id] : null);
 
   const [refineText, setRefineText] = useState("");
   const [copied, setCopied] = useState(false);
@@ -118,6 +219,17 @@ function PreviewPage() {
       }
     });
   };
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center p-6 animate-pulse">
+        <div className="flex flex-col items-center gap-3">
+          <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading demo details...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!lead || !demo) {
     return (

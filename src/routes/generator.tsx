@@ -30,6 +30,7 @@ const emptyDirection: PromptDirection = {
   visualReference: "",
   sections: ["Hero", "Features", "Social Proof", "CTA"],
   ctaFocus: "",
+  heroStyle: "static",
   story: "",
   need: "",
   answer: "",
@@ -285,6 +286,14 @@ function GeneratorPage() {
               />
             </Field>
           </div>
+
+          <Field label="Hero style">
+            <Chips
+              options={["static", "carousel"]}
+              value={dir.heroStyle || "static"}
+              onChange={(v) => set("heroStyle", v as "static" | "carousel")}
+            />
+          </Field>
 
           <Field label="Sections to include">
             <div className="flex flex-wrap gap-2">
