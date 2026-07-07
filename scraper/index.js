@@ -350,11 +350,13 @@ ${queryParts.join("\n")}
 out center tags;`;
 }
 
-/**
- * Query the Overpass API for businesses matching a "category in Location" string.
- * Returns candidates in the same shape as the other fetchers (placeId, businessName, etc.)
- * so the rest of the pipeline can consume them without changes.
- */
+const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://z.overpass-api.de/api/interpreter",
+  "https://lz4.overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter"
+];
+
 async function fetchOverpassCandidates(query) {
   const parts = query.split(" in ");
   const category = (parts[0] || query).trim();
@@ -366,30 +368,49 @@ async function fetchOverpassCandidates(query) {
   }
 
   const overpassQL = buildOverpassQuery(category, location);
-  console.log(`[Overpass] Querying OpenStreetMap for "${category}" in "${location}"...`);
-
-  // Respect Overpass fair-use policy: 1.5s delay between requests
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-
-  let res;
-  try {
-    res = await fetchWithRetry(
-      "https://overpass-api.de/api/interpreter",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: `data=${encodeURIComponent(overpassQL)}`,
-      },
-      2,
-      3000
-    );
-  } catch (err) {
-    const error = new Error(`Overpass API fetch failed: ${err.message}`);
-    error.reason = "DNS/Connection timeout";
-    throw error;
+  
+  let res = null;
+  let data = null;
+  
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    console.log(`[Overpass] Querying OSM endpoint: ${endpoint} for "${category}" in "${location}"...`);
+    
+    // Respect Overpass fair-use policy: 1.5s delay between requests
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    
+    try {
+      const response = await fetchWithRetry(
+        endpoint,
+        {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": "PitchlineScraper/1.0 (https://github.com/4poesy/pitchline; contact@pitchline.dev)",
+            "Accept": "application/json"
+          },
+          body: `data=${encodeURIComponent(overpassQL)}`,
+        },
+        1, // 1 retry per endpoint to not hang too long
+        2000
+      );
+      
+      if (response.ok) {
+        data = await response.json();
+        res = response;
+        break; // Successfully got data, stop trying other endpoints
+      } else {
+        console.warn(`[Overpass] Endpoint ${endpoint} returned status ${response.status}`);
+      }
+    } catch (err) {
+      console.warn(`[Overpass] Endpoint ${endpoint} query failed: ${err.message}`);
+    }
   }
 
-  const data = await res.json();
+  if (!res || !data) {
+    console.error("[Overpass] All Overpass API endpoints failed or rate-limited.");
+    return [];
+  }
+
   const elements = data.elements || [];
 
   // Filter out unnamed elements — they're useless as business leads
