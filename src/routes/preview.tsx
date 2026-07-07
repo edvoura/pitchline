@@ -336,7 +336,7 @@ function PreviewPage() {
             title={`${lead.business} demo`}
             srcDoc={demo.html}
             className="h-full w-full"
-            sandbox="allow-scripts"
+            sandbox="allow-scripts allow-same-origin"
           />
         </div>
       </div>
