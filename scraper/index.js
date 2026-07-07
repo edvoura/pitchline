@@ -8,7 +8,6 @@ dotenv.config();
 dotenv.config({ path: path.resolve(process.cwd(), "../.env") });
 dotenv.config({ path: path.resolve(process.cwd(), "../.env.local") });
 
-const GOOGLE_PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY || process.env.PLACES_API_KEY || process.env.google_places_api_key || process.env.places_api_key;
 const APIFY_API_KEY = process.env.APIFY_API_KEY || process.env.apify_api;
 const SERP_API_KEY = process.env.SERP_API_KEY || process.env.serp_api;
 const MAILBOXLAYER_API_KEY = process.env.MAILBOXLAYER_API_KEY || process.env.mailboxlayer_api;
@@ -257,97 +256,179 @@ async function summarizeBrandTone(rawTextSignals) {
   }
 }
 
-// Places-photo brand extraction fallback (for businesses without websites)
-async function extractBrandFromPlaces(candidate) {
-  const brand = { colors: null, logoUrl: null, fonts: null, tone: null };
+// ─── OpenStreetMap Overpass API — Primary Business Discovery Source ───────────
+// Free, no signup, no API key required.
+// Endpoint: https://overpass-api.de/api/interpreter
+// Maps Pitchline sector names to OSM tag filters for Overpass QL queries.
 
-  // Try to extract dominant colors from Places photos
-  if (GOOGLE_PLACES_API_KEY && candidate.raw?.photos?.length > 0) {
-    try {
-      let sharp;
-      try { sharp = (await import("sharp")).default; } catch { sharp = null; }
+const OSM_TAG_MAP = {
+  // Healthcare & Wellness
+  "dentists":                ['["amenity"="dentist"]'],
+  "medspas":                 ['["shop"="beauty"]["beauty"="spa"]', '["leisure"="spa"]'],
+  "physiotherapy clinics":   ['["healthcare"="physiotherapist"]'],
+  "chiropractors":           ['["healthcare"="chiropractor"]'],
+  "optometrists":            ['["healthcare"="optometrist"]', '["shop"="optician"]'],
 
-      if (sharp) {
-        const photoRef = candidate.raw.photos[0].photo_reference;
-        const photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photoRef}&key=${GOOGLE_PLACES_API_KEY}`;
-        const photoRes = await fetch(photoUrl);
-        if (photoRes.ok) {
-          const buffer = Buffer.from(await photoRes.arrayBuffer());
-          // Resize to tiny image and extract dominant colors via pixel stats
-          const { dominant } = await sharp(buffer).resize(50, 50, { fit: "cover" }).stats();
-          if (dominant) {
-            const toHex = (r, g, b) => "#" + [r, g, b].map(c => c.toString(16).padStart(2, "0")).join("");
-            const domColor = toHex(dominant.r, dominant.g, dominant.b);
-            // Get a complementary set by adjusting channels
-            const { channels } = await sharp(buffer).resize(10, 10, { fit: "cover" }).stats();
-            const colors = [domColor];
-            if (channels?.[0] && channels?.[1] && channels?.[2]) {
-              const c2 = toHex(
-                Math.min(255, Math.round(channels[0].mean * 0.7)),
-                Math.min(255, Math.round(channels[1].mean * 0.7)),
-                Math.min(255, Math.round(channels[2].mean * 0.7))
-              );
-              if (c2 !== domColor) colors.push(c2);
-            }
-            brand.colors = colors.slice(0, 3);
-          }
-        }
-      }
-    } catch (err) {
-      console.warn(`[BrandIntel] Places photo color extraction failed: ${err.message}`);
-    }
+  // Finance & Professional Services
+  "accounting firms":        ['["office"="accountant"]'],
+  "tax consultants":         ['["office"="tax_advisor"]', '["office"="accountant"]'],
+  "wealth management":       ['["office"="financial_advisor"]', '["office"="financial"]'],
+  "insurance agencies":      ['["office"="insurance"]'],
+
+  // Education & Training
+  "private schools":         ['["amenity"="school"]["operator:type"="private"]', '["amenity"="school"]'],
+  "driving schools":         ['["amenity"="driving_school"]'],
+  "coding bootcamps":        ['["amenity"="training"]', '["amenity"="college"]'],
+  "language academies":      ['["amenity"="language_school"]'],
+
+  // Legal & Corporate
+  "law firms":               ['["office"="lawyer"]'],
+  "immigration lawyers":     ['["office"="lawyer"]'],
+  "corporate consultants":   ['["office"="consulting"]', '["office"="company"]'],
+
+  // Real Estate & Property
+  "real estate agencies":    ['["office"="estate_agent"]'],
+  "property management":     ['["office"="estate_agent"]'],
+  "interior designers":      ['["office"="architect"]', '["shop"="interior_decoration"]'],
+  "architecture firms":      ['["office"="architect"]'],
+
+  // Home Services & Construction
+  "roofing contractors":     ['["craft"="roofer"]'],
+  "hvac repair":             ['["craft"="hvac"]'],
+  "plumbing services":       ['["craft"="plumber"]'],
+  "electricians":            ['["craft"="electrician"]'],
+  "solar installers":        ['["craft"="photovoltaic"]', '["shop"="energy"]'],
+
+  // Beauty, Personal Care & Fitness
+  "hair salons":             ['["shop"="hairdresser"]'],
+  "barbershops":             ['["shop"="hairdresser"]', '["amenity"="barber"]'],
+  "fitness gyms":            ['["leisure"="fitness_centre"]'],
+  "yoga studios":            ['["leisure"="fitness_centre"]["sport"="yoga"]', '["sport"="yoga"]'],
+
+  // Hospitality & Food
+  "restaurants":             ['["amenity"="restaurant"]'],
+  "boutique cafes":          ['["amenity"="cafe"]'],
+  "event caterers":          ['["craft"="caterer"]'],
+
+  // Automotive & Logistics
+  "auto repair shops":       ['["shop"="car_repair"]'],
+  "car detailing":           ['["shop"="car_repair"]', '["amenity"="car_wash"]'],
+  "logistics companies":     ['["office"="logistics"]', '["office"="courier"]'],
+};
+
+/**
+ * Build an Overpass QL query string from a human-readable category + location.
+ * Uses area name matching (case-insensitive) so "Lagos", "London", etc. resolve
+ * to the corresponding OSM administrative boundary.
+ */
+function buildOverpassQuery(category, location) {
+  const tagFilters = OSM_TAG_MAP[category.toLowerCase()];
+
+  // Fallback: if no tag mapping exists, do a fuzzy name search across all POIs
+  if (!tagFilters) {
+    console.warn(`[Overpass] No OSM tag mapping for "${category}", falling back to name search`);
+    return `[out:json][timeout:30];
+area["name"~"${location}",i]->.searchArea;
+(
+  node["name"~"${category}",i](area.searchArea);
+  way["name"~"${category}",i](area.searchArea);
+);
+out center tags;`;
   }
 
-  // Use category/type + reviews for tone
-  const types = candidate.raw?.types || [];
-  const reviews = candidate.raw?.reviews?.slice(0, 2)?.map(r => r.text).join(" ") || "";
-  const typeStr = types.slice(0, 3).join(", ");
+  // Build union of node+way queries for each tag filter
+  const queryParts = tagFilters.flatMap((filter) => [
+    `  node${filter}(area.searchArea);`,
+    `  way${filter}(area.searchArea);`,
+  ]);
 
-  if (GEMINI_API_KEY && (typeStr || reviews)) {
-    const toneText = `Business type: ${typeStr}. ${reviews ? "Customer reviews: " + reviews.substring(0, 300) : ""}`;
-    brand.tone = await summarizeBrandTone(toneText);
-  }
-
-  return brand;
+  return `[out:json][timeout:30];
+area["name"~"${location}",i]->.searchArea;
+(
+${queryParts.join("\n")}
+);
+out center tags;`;
 }
 
-// Harvesting Candidate fetchers with retry and rate-limit detection
-async function fetchGooglePlacesCandidates(query) {
-  console.log(`[Places] Querying Google Places API...`);
-  const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${GOOGLE_PLACES_API_KEY}`;
-  
+/**
+ * Query the Overpass API for businesses matching a "category in Location" string.
+ * Returns candidates in the same shape as the other fetchers (placeId, businessName, etc.)
+ * so the rest of the pipeline can consume them without changes.
+ */
+async function fetchOverpassCandidates(query) {
+  const parts = query.split(" in ");
+  const category = (parts[0] || query).trim();
+  const location = (parts[1] || "").trim();
+
+  if (!location) {
+    console.warn(`[Overpass] No location found in query "${query}", skipping`);
+    return [];
+  }
+
+  const overpassQL = buildOverpassQuery(category, location);
+  console.log(`[Overpass] Querying OpenStreetMap for "${category}" in "${location}"...`);
+
+  // Respect Overpass fair-use policy: 1.5s delay between requests
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+
   let res;
   try {
-    res = await fetchWithRetry(url, {}, 2, 2000);
+    res = await fetchWithRetry(
+      "https://overpass-api.de/api/interpreter",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `data=${encodeURIComponent(overpassQL)}`,
+      },
+      2,
+      3000
+    );
   } catch (err) {
-    const error = new Error(`Places API fetch failed: ${err.message}`);
+    const error = new Error(`Overpass API fetch failed: ${err.message}`);
     error.reason = "DNS/Connection timeout";
     throw error;
   }
 
   const data = await res.json();
-  if (data.status === "REQUEST_DENIED") {
-    const error = new Error(data.error_message || "Denied");
-    error.reason = "403 Denied";
-    throw error;
-  }
-  if (data.status === "OVER_QUERY_LIMIT") {
-    const error = new Error("Google Places API Over Query Limit");
-    error.code = "OVER_QUERY_LIMIT";
-    error.reason = "Rate-limited";
-    throw error;
-  }
+  const elements = data.elements || [];
 
-  const results = data.results || [];
-  return results.slice(0, MAX_PLACES).map((item) => ({
-    placeId: item.place_id,
-    businessName: item.name,
-    address: item.formatted_address || "—",
-    phone: item.formatted_phone_number || "",
-    website: item.website || "",
-    raw: item,
-  }));
+  // Filter out unnamed elements — they're useless as business leads
+  const named = elements.filter((el) => el.tags?.name);
+
+  console.log(`[Overpass] Found ${named.length} named businesses (${elements.length} total elements)`);
+
+  return named.slice(0, MAX_PLACES).map((el) => {
+    const tags = el.tags || {};
+
+    // Build readable address from addr:* tags
+    const addrParts = [
+      tags["addr:housenumber"],
+      tags["addr:street"],
+      tags["addr:city"],
+      tags["addr:state"],
+      tags["addr:postcode"],
+      tags["addr:country"],
+    ].filter(Boolean);
+    const address = addrParts.length > 0 ? addrParts.join(", ") : (tags["addr:full"] || "—");
+
+    // Phone: check multiple OSM tag conventions
+    const phone = tags.phone || tags["contact:phone"] || tags["phone:mobile"] || "";
+
+    // Website: check multiple OSM tag conventions
+    const website = tags.website || tags["contact:website"] || tags.url || "";
+
+    return {
+      placeId: `osm_${el.type}/${el.id}`,
+      businessName: tags.name,
+      address,
+      phone,
+      website,
+      raw: el,
+    };
+  });
 }
+
+// ─── Paid API Fallback Fetchers (optional, gated on their own API keys) ──────
 
 async function fetchApifyCandidates(query) {
   console.log(`[Apify] Querying Google Maps Scraper Actor...`);
@@ -424,20 +505,14 @@ async function scrapeSingleQuery(query) {
   let candidates = [];
   let rateLimitStops = false;
 
-  // Try Google Places API first
-  if (GOOGLE_PLACES_API_KEY && !rateLimitStops) {
-    try {
-      candidates = await fetchGooglePlacesCandidates(query);
-    } catch (err) {
-      console.warn(`[Places] Failed to fetch candidates: ${err.message} (Reason: ${err.reason || "unknown"})`);
-      if (err.code === "OVER_QUERY_LIMIT") {
-        rateLimitStops = true;
-        runStats.rateLimitStops = "Y";
-      }
-    }
+  // Primary source: OpenStreetMap Overpass API (free, no key required)
+  try {
+    candidates = await fetchOverpassCandidates(query);
+  } catch (err) {
+    console.warn(`[Overpass] Failed to fetch candidates: ${err.message} (Reason: ${err.reason || "unknown"})`);
   }
 
-  // Fallback 1: Apify Scraper API
+  // Fallback 1: Apify Scraper API (paid, optional)
   if (candidates.length === 0 && APIFY_API_KEY && !rateLimitStops) {
     try {
       candidates = await fetchApifyCandidates(query);
@@ -446,7 +521,7 @@ async function scrapeSingleQuery(query) {
     }
   }
 
-  // Fallback 2: SerpAPI
+  // Fallback 2: SerpAPI (paid, optional)
   if (candidates.length === 0 && SERP_API_KEY && !rateLimitStops) {
     try {
       candidates = await fetchSerpApiCandidates(query);
@@ -460,34 +535,12 @@ async function scrapeSingleQuery(query) {
   }
 
   if (candidates.length === 0) {
-    console.error(`[Scraper] All harvesting APIs failed or rate-limited for: "${query}".`);
+    console.error(`[Scraper] All harvesting APIs failed or returned no results for: "${query}".`);
     runStats.leadsSkippedFetchFailed += MAX_PLACES;
     return 0;
   }
 
   runStats.businessesFound = candidates.length;
-
-  // Resolve additional website details if Google Places was used and website was missing
-  if (GOOGLE_PLACES_API_KEY && !rateLimitStops) {
-    for (let i = 0; i < candidates.length; i++) {
-      const cand = candidates[i];
-      if (!cand.website) {
-        try {
-          const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${cand.placeId}&fields=website,formatted_phone_number&key=${GOOGLE_PLACES_API_KEY}`;
-          const res = await fetchWithRetry(detailsUrl, {}, 2, 2000);
-          if (res.ok) {
-            const detailData = await res.json();
-            if (detailData.result) {
-              if (detailData.result.website) cand.website = detailData.result.website;
-              if (detailData.result.formatted_phone_number) cand.phone = detailData.result.formatted_phone_number;
-            }
-          }
-        } catch (err) {
-          console.warn(`[Places Details] Fetch failed for ${cand.businessName}: ${err.message}`);
-        }
-      }
-    }
-  }
 
   // Crawl websites using Crawlee
   const urlsToCrawl = candidates
@@ -673,16 +726,9 @@ async function scrapeSingleQuery(query) {
       runStats.leadsWrittenNew++;
     }
 
-    // Brand intelligence: prefer website-crawled data, fallback to Places photos
-    let brandData = crawledBrandMap.get(cand.placeId);
-    let brandSource = cand.website ? 'website' : 'none';
-    if (!brandData?.colors && !cand.website) {
-      const placesBrand = await extractBrandFromPlaces(cand);
-      if (placesBrand.colors || placesBrand.tone) {
-        brandData = placesBrand;
-        brandSource = 'places_photos';
-      }
-    }
+    // Brand intelligence: use website-crawled data when available
+    const brandData = crawledBrandMap.get(cand.placeId);
+    const brandSource = cand.website ? 'website' : 'none';
 
     finalLeads.push({
       business: cand.businessName,

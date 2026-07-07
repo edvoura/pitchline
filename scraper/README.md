@@ -1,6 +1,6 @@
 # Pitchline Scraper Service
 
-A standalone Node.js web scraping job powered by Google Places API, Crawlee, and Supabase. It queries businesses for target keywords and locations (e.g. *"dentists in Lagos"*), flags website staleness, extracts emails by crawling, validates them via Mailboxlayer, and writes leads into the cockpit database.
+A standalone Node.js web scraping job powered by **OpenStreetMap Overpass API**, Crawlee, and Supabase. It queries businesses for target keywords and locations (e.g. *"dentists in Lagos"*), flags website staleness, extracts emails by crawling, validates them via Mailboxlayer, and writes leads into the cockpit database.
 
 ---
 
@@ -13,9 +13,6 @@ The scraper reads configuration options from your system environment. Create a `
 SUPABASE_URL=https://tqsksxxmkjnqfakkeyaf.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=YOUR_SUPABASE_SERVICE_ROLE_KEY # Must be Service Role key to bypass RLS
 
-# Google Places API Credentials
-GOOGLE_PLACES_API_KEY=YOUR_GOOGLE_PLACES_API_KEY
-
 # Email Verification (Optional)
 MAILBOXLAYER_API_KEY=YOUR_MAILBOXLAYER_API_KEY
 
@@ -23,6 +20,12 @@ MAILBOXLAYER_API_KEY=YOUR_MAILBOXLAYER_API_KEY
 QUERY="dentists in Lagos"
 LIMIT=15
 ```
+
+> **Note:** The primary business discovery source (OpenStreetMap Overpass API) is completely free and requires **no API key or signup**. Only Supabase credentials are required for the scraper to function.
+
+### OSM Coverage Notes
+
+OSM data is community-contributed, so completeness varies by region. Expect solid results in major cities (Lagos, Nairobi, London, New York) but potentially sparse data for niche sectors or smaller towns. If a query returns few results, try a broader category or wider geographic area. The scraper will automatically fall back to Apify or SerpAPI if those keys are configured and Overpass returns no results.
 
 ---
 
