@@ -37,6 +37,139 @@ const emptyDirection: PromptDirection = {
   proof: "",
 };
 
+function getSnapOptions(industry: string) {
+  const ind = (industry || "").toLowerCase();
+  
+  if (ind.includes("dent") || ind.includes("clinic") || ind.includes("health") || ind.includes("medic")) {
+    return {
+      story: [
+        "We believe premium dental care starts with listening to the patient first.",
+        "Your smile is the first thing people notice — it deserves expert, gentle care.",
+        "Going to the dentist should be a relaxing experience, not a source of anxiety.",
+        "Providing modern, stress-free family dentistry for our local community."
+      ],
+      need: [
+        "Finding a trusted family dentist who prioritizes your comfort can be stressful.",
+        "Busy schedules and dental anxiety prevent many from getting essential care.",
+        "Outdated clinics and rushed appointments make simple cleanings feel unpleasant."
+      ],
+      answer: [
+        "We offer comprehensive family dentistry in a gentle, warm, and modern environment.",
+        "Our state-of-the-art clinic uses advanced pain-free technology for maximum comfort.",
+        "Bespoke dental treatments tailored to your schedule, with zero anxiety."
+      ],
+      proof: [
+        "Over 5,000+ smiles created in our modern clinic, backed by 5-star Google ratings.",
+        "Equipped with advanced low-radiation digital imaging and comforting amenities.",
+        "Our experienced team has over 15 years of combined clinical excellence."
+      ]
+    };
+  }
+  
+  if (ind.includes("rest") || ind.includes("cafe") || ind.includes("food") || ind.includes("bake") || ind.includes("coffee") || ind.includes("bakery")) {
+    return {
+      story: [
+        "We believe every meal tells a story of organic care, craft, and passion.",
+        "Crafting the perfect daily cup of coffee is a ritual we take seriously.",
+        "Bringing neighbors together over hand-crafted seasonal recipes.",
+        "Traditional baking methods passed down through generations, fresh daily."
+      ],
+      need: [
+        "Finding authentic, scratch-made dining spots using clean ingredients can be tough.",
+        "Fast food shouldn't mean sacrificing fresh, vibrant flavor or quality.",
+        "In a busy city, finding a cozy sanctuary to unwind with good food is rare."
+      ],
+      answer: [
+        "We serve scratch-made local classics using organic ingredients from local farms.",
+        "Our cozy space combines signature artisan coffee with freshly baked pastries.",
+        "A carefully curated menu of seasonal dishes served in a relaxed atmosphere."
+      ],
+      proof: [
+        "Voted top local dining experience in the neighborhood with 300+ five-star reviews.",
+        "100% locally sourced organic ingredients delivered fresh every single morning.",
+        "Proudly serving our signature recipes to happy regulars for over 8 years."
+      ]
+    };
+  }
+  
+  if (ind.includes("saas") || ind.includes("tech") || ind.includes("soft") || ind.includes("app") || ind.includes("agency") || ind.includes("consult")) {
+    return {
+      story: [
+        "Scaling your business operations shouldn't require hiring a massive team.",
+        "We believe technology should work for you, not add to your daily stress.",
+        "Modern business teams waste hours every single week on manual, repetitive tasks.",
+        "Your digital product should convert visitors, not just look pretty."
+      ],
+      need: [
+        "Fragmented tools and overly complex software end up costing more time than they save.",
+        "Finding a technical partner that understands business conversion rates is rare.",
+        "Most platforms are built for engineers, leaving operators struggling to execute."
+      ],
+      answer: [
+        "We build clean, high-performance automated pipelines that save 15+ hours weekly.",
+        "Our intuitive single-pane dashboard brings all customer touchpoints together.",
+        "We design and build custom digital products engineered for high conversion rates."
+      ],
+      proof: [
+        "Helping 150+ high-growth brands scale with an average conversion lift of 35%.",
+        "Tested to handle millions of requests with a guaranteed 99.99% uptime record.",
+        "Featured in leading tech publications and trusted by enterprise teams globally."
+      ]
+    };
+  }
+  
+  if (ind.includes("well") || ind.includes("spa") || ind.includes("yoga") || ind.includes("care") || ind.includes("salon") || ind.includes("beauty")) {
+    return {
+      story: [
+        "True wellness isn't a luxury — it's an essential daily practice.",
+        "Your mind and body deserve a regular pause from the daily digital noise.",
+        "Healthy, glowing skin starts with natural, nourishing organic botanicals.",
+        "Bespoke self-care treatments designed to restore your natural balance."
+      ],
+      need: [
+        "Finding a quiet space to truly disconnect and recharge is almost impossible.",
+        "Standard salons often rush your treatment, making self-care feel like a chore.",
+        "Many modern beauty products use harsh chemicals that irritate instead of healing."
+      ],
+      answer: [
+        "We offer bespoke therapeutic massages and organic facials in a serene sanctuary.",
+        "Our holistic wellness programs restore balance, strength, and inner peace.",
+        "A premium salon experience focusing on non-toxic, eco-friendly hair and nail care."
+      ],
+      proof: [
+        "Named the top local wellness escape with a 98% client satisfaction rate.",
+        "Only 100% certified organic and cruelty-free botanicals are used in our spa.",
+        "Our certified therapists have over a decade of experience in holistic healing."
+      ]
+    };
+  }
+
+  // Fallback / General services
+  return {
+    story: [
+      "We believe a clean, organized space is the foundation of a productive life.",
+      "Your home is your biggest investment — it deserves professional craftsmanship.",
+      "When something breaks in your home, you need a quick, reliable, transparent fix.",
+      "Providing top-tier local services built on trust, honesty, and clear pricing."
+    ],
+    need: [
+      "Finding service providers who show up on time and do quality work is a major hassle.",
+      "Most contractors charge hidden fees and leave a mess behind when they're done.",
+      "Trying to manage complex home tasks yourself wastes your weekend time."
+    ],
+    answer: [
+      "Our premium team uses eco-friendly products to make your space spotless and fresh.",
+      "From custom installations to minor repairs, we deliver exceptional craftsmanship.",
+      "We provide fully licensed, background-checked local repair and maintenance services."
+    ],
+    proof: [
+      "Backed by a 100% satisfaction guarantee and fully insured for your peace of mind.",
+      "Over 800+ homes serviced locally with a perfect track record of reliability.",
+      "Same-day response times for emergency calls with transparent, flat-rate pricing."
+    ]
+  };
+}
+
 function GeneratorPage() {
   const {
     leads,
@@ -93,9 +226,23 @@ function GeneratorPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeLeadId]);
 
+  // Auto-compile prompt on direction/provider/lead changes with 400ms debounce
+  useEffect(() => {
+    if (!lead) return;
+    const delayDebounce = setTimeout(async () => {
+      try {
+        const rec = await compileFor(lead.id, dir, provider);
+        if (rec) setCompiled(rec.compiled);
+      } catch (err) {
+        console.error("Auto-compile failed:", err);
+      }
+    }, 400);
+
+    return () => clearTimeout(delayDebounce);
+  }, [dir, provider, lead, compileFor]);
+
   const set = <K extends keyof PromptDirection>(k: K, v: PromptDirection[K]) => {
     setDir((d) => ({ ...d, [k]: v }));
-    setCompiled(null);
   };
 
   const toggleSection = (s: string) =>
@@ -116,7 +263,6 @@ function GeneratorPage() {
       animation: t.animation,
       sections: t.sections,
     }));
-    setCompiled(null);
   };
 
   const doCompile = async () => {
@@ -360,20 +506,92 @@ function GeneratorPage() {
               <span className="mono text-[11px] uppercase tracking-wider text-primary">SNAP copy</span>
               <div className="h-px flex-1 bg-border" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Story hook">
-                <TextInput value={dir.story} onChange={(v) => set("story", v)} placeholder="The opening line" />
-              </Field>
-              <Field label="Need">
-                <TextInput value={dir.need} onChange={(v) => set("need", v)} placeholder="Pain being solved" />
-              </Field>
-              <Field label="Answer">
-                <TextInput value={dir.answer} onChange={(v) => set("answer", v)} placeholder="Your solution" />
-              </Field>
-              <Field label="Proof point">
-                <TextInput value={dir.proof} onChange={(v) => set("proof", v)} placeholder="A testimonial / stat" />
-              </Field>
-            </div>
+            {(() => {
+              const snapOpts = getSnapOptions(lead?.industry || "");
+              return (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <Field label="Story hook">
+                    <div className="flex flex-col gap-1.5">
+                      <select
+                        value={snapOpts.story.includes(dir.story) ? dir.story : ""}
+                        onChange={(e) => {
+                          if (e.target.value) set("story", e.target.value);
+                        }}
+                        className="w-full rounded-md border border-input bg-input px-2.5 py-1.5 text-xs text-foreground outline-none focus:border-ring"
+                      >
+                        <option value="">-- Select realistic Hook Preset --</option>
+                        {snapOpts.story.map((opt, idx) => (
+                          <option key={idx} value={opt}>
+                            {opt.length > 55 ? opt.substring(0, 55) + "..." : opt}
+                          </option>
+                        ))}
+                      </select>
+                      <TextInput value={dir.story} onChange={(v) => set("story", v)} placeholder="Or customize opening line here..." />
+                    </div>
+                  </Field>
+
+                  <Field label="Need">
+                    <div className="flex flex-col gap-1.5">
+                      <select
+                        value={snapOpts.need.includes(dir.need) ? dir.need : ""}
+                        onChange={(e) => {
+                          if (e.target.value) set("need", e.target.value);
+                        }}
+                        className="w-full rounded-md border border-input bg-input px-2.5 py-1.5 text-xs text-foreground outline-none focus:border-ring"
+                      >
+                        <option value="">-- Select realistic Need Preset --</option>
+                        {snapOpts.need.map((opt, idx) => (
+                          <option key={idx} value={opt}>
+                            {opt.length > 55 ? opt.substring(0, 55) + "..." : opt}
+                          </option>
+                        ))}
+                      </select>
+                      <TextInput value={dir.need} onChange={(v) => set("need", v)} placeholder="Or customize pain point here..." />
+                    </div>
+                  </Field>
+
+                  <Field label="Answer">
+                    <div className="flex flex-col gap-1.5">
+                      <select
+                        value={snapOpts.answer.includes(dir.answer) ? dir.answer : ""}
+                        onChange={(e) => {
+                          if (e.target.value) set("answer", e.target.value);
+                        }}
+                        className="w-full rounded-md border border-input bg-input px-2.5 py-1.5 text-xs text-foreground outline-none focus:border-ring"
+                      >
+                        <option value="">-- Select realistic Answer Preset --</option>
+                        {snapOpts.answer.map((opt, idx) => (
+                          <option key={idx} value={opt}>
+                            {opt.length > 55 ? opt.substring(0, 55) + "..." : opt}
+                          </option>
+                        ))}
+                      </select>
+                      <TextInput value={dir.answer} onChange={(v) => set("answer", v)} placeholder="Or customize solution here..." />
+                    </div>
+                  </Field>
+
+                  <Field label="Proof point">
+                    <div className="flex flex-col gap-1.5">
+                      <select
+                        value={snapOpts.proof.includes(dir.proof) ? dir.proof : ""}
+                        onChange={(e) => {
+                          if (e.target.value) set("proof", e.target.value);
+                        }}
+                        className="w-full rounded-md border border-input bg-input px-2.5 py-1.5 text-xs text-foreground outline-none focus:border-ring"
+                      >
+                        <option value="">-- Select realistic Proof Preset --</option>
+                        {snapOpts.proof.map((opt, idx) => (
+                          <option key={idx} value={opt}>
+                            {opt.length > 55 ? opt.substring(0, 55) + "..." : opt}
+                          </option>
+                        ))}
+                      </select>
+                      <TextInput value={dir.proof} onChange={(v) => set("proof", v)} placeholder="Or customize testimonial/stat here..." />
+                    </div>
+                  </Field>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
