@@ -193,7 +193,7 @@ function mapDemoToDb(d: DemoRecord): any {
     ready: d.ready,
     tokens_used: d.tokensUsed,
     generation_ms: d.generationMs,
-    public_slug: d.publicSlug || null,
+    // NOTE: public_slug excluded until migration 20260707_demos_public_slug.sql is run
   };
 }
 
@@ -533,10 +533,32 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
           // Append a unique seed so each generation produces a genuinely different design variation
           const seed = `\n\nGENERATION SEED (use this to inspire a unique design variation — do NOT output this seed): ${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
           const promptWithSeed = prompt.compiled + seed;
-          if (effectiveProvider === "claude") {
-            result = await generateClaudeDemo(promptWithSeed, null, [], onStageChange);
-          } else {
-            result = await generateGeminiDemo(promptWithSeed, null, [], onStageChange);
+          try {
+            if (effectiveProvider === "claude") {
+              result = await generateClaudeDemo(promptWithSeed, null, [], onStageChange);
+            } else {
+              result = await generateGeminiDemo(promptWithSeed, null, [], onStageChange);
+            }
+          } catch (providerErr) {
+            // Auto-fallback to other provider on 429 / quota errors
+            const errMsg = providerErr instanceof Error ? providerErr.message : String(providerErr);
+            if (errMsg.includes("429") || errMsg.includes("quota") || errMsg.includes("rate")) {
+              const fallback = effectiveProvider === "gemini" ? "claude" : "gemini";
+              const fallbackKey = fallback === "claude" ? claudeKey : geminiKey;
+              if (fallbackKey) {
+                console.warn(`[Pitchline] ${effectiveProvider} rate-limited, falling back to ${fallback}...`);
+                toast.info(`${effectiveProvider} quota exceeded — retrying with ${fallback}...`);
+                if (fallback === "claude") {
+                  result = await generateClaudeDemo(promptWithSeed, null, [], onStageChange);
+                } else {
+                  result = await generateGeminiDemo(promptWithSeed, null, [], onStageChange);
+                }
+              } else {
+                throw providerErr; // No fallback key available
+              }
+            } else {
+              throw providerErr; // Non-rate-limit error, don't fallback
+            }
           }
         } else {
           console.log("[Pitchline] Running server-side generation...");
@@ -561,13 +583,15 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
           publicSlug: existingDemo?.publicSlug || tempDemo.publicSlug,
         };
 
-        await Promise.all([
+        const [demoRes, leadRes] = await Promise.all([
           supabase.from("demos").upsert(mapDemoToDb(newDemo)),
           supabase
             .from("leads")
             .update({ stage: "demo_built" })
             .eq("id", leadId),
         ]);
+        if (demoRes.error) console.error("[Pitchline] Demo upsert failed:", demoRes.error.message);
+        if (leadRes.error) console.error("[Pitchline] Lead stage update failed:", leadRes.error.message);
 
         setState((s) => ({
           ...s,
@@ -654,7 +678,8 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
           generationMs: (existing.generationMs || 0) + (result.generationMs || 0),
         };
 
-        await supabase.from("demos").upsert(mapDemoToDb(newDemo));
+        const { error: upsertErr } = await supabase.from("demos").upsert(mapDemoToDb(newDemo));
+        if (upsertErr) console.error("[Pitchline] Refine upsert failed:", upsertErr.message);
 
         setState((s) => ({
           ...s,
