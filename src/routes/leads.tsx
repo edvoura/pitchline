@@ -12,6 +12,8 @@ import {
   Upload,
   Plus,
   Download,
+  Phone,
+  MessageCircle,
 } from "lucide-react";
 import { PageHeader } from "@/components/pitchline/PageHeader";
 import { StatusBadge } from "@/components/pitchline/StatusBadge";
@@ -235,6 +237,7 @@ function LeadsPage() {
                 <th className="px-3 py-2.5 text-center font-medium">Site</th>
                 <th className="px-3 py-2.5 text-center font-medium">Brand</th>
                 <th className="px-3 py-2.5 text-center font-medium">Email</th>
+                <th className="px-3 py-2.5 text-center font-medium">Channel</th>
                 <th className="px-3 py-2.5 font-medium">Qualification</th>
                 <th className="px-3 py-2.5 font-medium">Stage</th>
                 <th className="px-3 py-2.5 font-medium">Scraped</th>
@@ -253,6 +256,7 @@ function LeadsPage() {
                     "border-b border-border/60 transition-colors last:border-0 hover:bg-surface/60",
                     selected.includes(l.id) && "bg-surface/80",
                     i === cursor && "bg-accent/40 ring-1 ring-inset ring-primary/40",
+                    l.preferredChannel === "call" && "opacity-60",
                   )}
                 >
                   <td className="px-3 py-2.5">
@@ -291,6 +295,35 @@ function LeadsPage() {
                   <td className="px-3 py-2.5">
                     <div className="flex justify-center">
                       <EmailFlag status={l.emailStatus} />
+                    </div>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <div className="flex justify-center">
+                      {l.preferredChannel === 'whatsapp' && l.whatsappLink ? (
+                        <a
+                          href={l.whatsappLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={`WhatsApp: ${l.phone || 'unknown'}`}
+                          className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-400 transition hover:bg-emerald-500/20"
+                        >
+                          <MessageCircle className="h-3 w-3" />
+                          WhatsApp
+                        </a>
+                      ) : l.preferredChannel === 'call' ? (
+                        <span
+                          title="No digital contact — manual research needed"
+                          className="flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-400"
+                        >
+                          <Phone className="h-3 w-3" />
+                          Call
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                          <Mail className="h-3 w-3" />
+                          Email
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className={cn("px-3 py-2.5 text-xs font-medium capitalize", qualStyles[l.qualification])}>

@@ -643,17 +643,15 @@ async function scrapeSingleQuery(query) {
     const normalizedPhone = normalizePhoneNumber(cand.phone || "", query);
     const whatsappLink = normalizedPhone ? `https://wa.me/${normalizedPhone}` : null;
     
-    // Skip if no contact info at all
-    if (!foundEmail && !normalizedPhone && !existing?.email && !existing?.phone) {
-      console.log(`[Skip] No valid contact info found for: "${cand.businessName}". Skipping.`);
-      runStats.leadsSkippedNoContact++;
-      continue;
-    }
-
-    // Determine preferred channel
-    let preferredChannel = "email";
-    if (whatsappLink) {
+    // Determine preferred channel using priority: email > whatsapp > call
+    let preferredChannel = "call"; // default: manual follow-up needed
+    let noContactNote = "";
+    if (foundEmail) {
+      preferredChannel = "email";
+    } else if (normalizedPhone) {
       preferredChannel = "whatsapp";
+    } else if (!existing?.email && !existing?.phone) {
+      noContactNote = "No contact info found — manual research needed";
     }
 
     if (foundEmail) runStats.emailsFound++;
@@ -698,6 +696,8 @@ async function scrapeSingleQuery(query) {
       email_status: emailStatus,
       qualification: "pending",
       stage: stageToWrite,
+      notes: noContactNote || "",
+      date_scraped: new Date().toISOString().split("T")[0],
       source: "scraper",
       source_place_id: cand.placeId,
       raw_scrape: cand.raw,
