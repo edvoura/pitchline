@@ -240,6 +240,22 @@ export function generateDemoHtml(
   footer { padding:40px 0; color:${t.muted}; font-size:14px; text-align:center; border-top:1px solid ${t.card}; }
   @media(max-width:720px){ .grid{grid-template-columns:1fr;} }
 </style>
+<script>
+  document.addEventListener("click", function(e) {
+    const a = e.target.closest("a");
+    if (a) {
+      const href = a.getAttribute("href");
+      if (href && href.startsWith("#")) {
+        e.preventDefault();
+        const targetId = href.substring(1);
+        const targetEl = document.getElementById(targetId || "home");
+        if (targetEl) {
+          targetEl.scrollIntoView({ behavior: "smooth" });
+        }
+      }
+    }
+  });
+</script>
 </head>
 <body>
 <div class="wrap">

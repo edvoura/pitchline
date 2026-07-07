@@ -23,6 +23,22 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 
+/** Injects the anchor-scroll interception script into demo HTML so that
+ *  hash-link clicks scroll locally instead of navigating the sandboxed iframe
+ *  to the parent URL (which causes a SecurityError crash). */
+function safeDemoHtml(raw: string): string {
+  if (!raw) return raw;
+  // Skip injection if the script is already present
+  if (raw.includes('e.target.closest("a")') || raw.includes("e.target.closest('a')")) return raw;
+  const scrollScript = `<script>
+document.addEventListener("click",function(e){var a=e.target.closest("a");if(a){var h=a.getAttribute("href");if(h&&h.startsWith("#")){e.preventDefault();var t=document.getElementById(h.substring(1)||"home");if(t)t.scrollIntoView({behavior:"smooth"})}}});
+</script>`;
+  // Inject before </head> if possible, otherwise before </body>, otherwise append
+  if (raw.includes('</head>')) return raw.replace('</head>', scrollScript + '</head>');
+  if (raw.includes('</body>')) return raw.replace('</body>', scrollScript + '</body>');
+  return raw + scrollScript;
+}
+
 export const Route = createFileRoute("/preview")({
   head: () => ({ meta: [{ title: "Demo Preview — Pitchline" }] }),
   validateSearch: (search: Record<string, unknown>): { leadId?: string; fullscreen?: boolean } => ({
@@ -44,7 +60,7 @@ function PreviewPage() {
   const [localLead, setLocalLead] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const currentLeadId = searchLeadId || activeLeadId || (typeof window !== "undefined" ? localStorage.getItem("pitchline_active_lead_id") : null);
+  const currentLeadId = searchLeadId || activeLeadId || (typeof window !== "undefined" ? (() => { try { return localStorage.getItem("pitchline_active_lead_id"); } catch { return null; } })() : null);
 
   useEffect(() => {
     if (!currentLeadId) {
@@ -295,7 +311,7 @@ function PreviewPage() {
         </button>
         <iframe
           title={`${lead.business} demo`}
-          srcDoc={demo.html}
+          srcDoc={safeDemoHtml(demo.html)}
           className="h-full w-full border-0"
           sandbox="allow-scripts" // Crucial: allow-same-origin removed to force unique origin. This prevents anchor clicks from navigating parent window to /preview and looping!
         />
@@ -504,7 +520,7 @@ function PreviewPage() {
           )}
           <iframe
             title={`${lead.business} demo`}
-            srcDoc={demo.html}
+            srcDoc={safeDemoHtml(demo.html)}
             className="h-full w-full border-0"
             sandbox="allow-scripts" // Crucial: allow-same-origin removed to force unique origin. This prevents anchor clicks from navigating parent window to /preview and looping!
           />

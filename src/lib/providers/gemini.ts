@@ -77,6 +77,23 @@ CRITICAL LAYOUT RULES:
 - Navigation links must be ANCHOR LINKS (href="#home", href="#services", etc.) that smooth-scroll to the corresponding section ID.
 - The first navigation item MUST be "Home" linking to the hero/top section (id="home").
 - Add smooth scrolling behavior: include \`<style>html { scroll-behavior: smooth; }</style>\` in the head.
+- To prevent sandboxed iframe navigation bugs, you MUST include this exact script in the head to intercept all anchor links and handle scrolling locally:
+  \`<script>
+    document.addEventListener("click", function(e) {
+      const a = e.target.closest("a");
+      if (a) {
+        const href = a.getAttribute("href");
+        if (href && href.startsWith("#")) {
+          e.preventDefault();
+          const targetId = href.substring(1);
+          const targetEl = document.getElementById(targetId || "home");
+          if (targetEl) {
+            targetEl.scrollIntoView({ behavior: "smooth" });
+          }
+        }
+      }
+    });
+  </script>\`
 
 BUILDING RULES (follow these strictly):
 - If a BRAND CONTEXT block is present in the prompt, use the exact brand colors as your primary palette (e.g. for backgrounds, accents, buttons), the brand fonts as typography, and the brand logo URL as the header icon/image. These override any generic Mood/Typography/Color direction.

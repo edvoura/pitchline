@@ -231,7 +231,7 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
     templates: [],
     prompts: {},
     demos: {},
-    activeLeadId: typeof window !== "undefined" ? localStorage.getItem("pitchline_active_lead_id") : null,
+    activeLeadId: typeof window !== "undefined" ? (() => { try { return localStorage.getItem("pitchline_active_lead_id"); } catch { return null; } })() : null,
     generationStage: null,
   });
 
@@ -318,11 +318,13 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
 
   const setActiveLead = useCallback((id: string | null) => {
     setState((s) => ({ ...s, activeLeadId: id }));
-    if (id) {
-      localStorage.setItem("pitchline_active_lead_id", id);
-    } else {
-      localStorage.removeItem("pitchline_active_lead_id");
-    }
+    try {
+      if (id) {
+        localStorage.setItem("pitchline_active_lead_id", id);
+      } else {
+        localStorage.removeItem("pitchline_active_lead_id");
+      }
+    } catch { /* sandboxed context — ignore */ }
   }, []);
 
   const addLeads = useCallback(async (leads: Lead[]) => {
