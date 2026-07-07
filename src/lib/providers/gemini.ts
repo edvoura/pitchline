@@ -61,9 +61,11 @@ export async function generateGeminiDemo(
 
   const start = Date.now();
 
+  const isRefinement = !!(currentHtml && refinements && refinements.length > 0);
+
   // Single-call system instruction that includes planning guidance inline
   // (avoids double API calls which exhaust rate limits)
-  const systemInstruction = `You are an expert web designer/developer building a single-page website demo.
+  const baseSystemInstruction = `You are an expert web designer/developer building a single-page website demo.
 
 PLANNING PHASE (do this mentally before writing code):
 1. Decide on sections: Home/Hero, About, Services/Features, Testimonials/Social Proof, Contact/CTA, Footer
@@ -122,13 +124,32 @@ BUILDING RULES (follow these strictly):
   • Touch targets (buttons, nav links) must be large enough to tap comfortably (min 44px touch target).
 - Output ONLY valid, raw, production-ready, self-contained HTML. Do not include markdown code block backticks (like \`\`\`html) or conversational text. Start directly with <!DOCTYPE html>.`;
 
+  // Append revision-specific system instruction for refinements
+  const systemInstruction = isRefinement
+    ? baseSystemInstruction + `\n\nIMPORTANT — REVISION MODE:\nThis is a revision request, NOT a fresh generation. You are being given the current HTML and a list of REQUIRED CHANGES.\nYou MUST visibly implement every single REQUIRED CHANGE listed below. Do NOT return a near-identical copy of the previous version.\nThe changes must be clearly reflected in the output HTML. If a change says "add a testimonials section", a testimonials section MUST appear. If it says "change button color to orange", the buttons MUST be orange.`
+    : baseSystemInstruction;
+
   if (onStageChange) onStageChange("building");
 
   let promptText = prompt;
-  if (currentHtml) {
-    promptText = `Here is the current HTML code of the website:\n\n${currentHtml}\n\nApply the following refinements to the design. Do not explain anything; output the revised self-contained HTML code directly:\n\n${refinements
-      ?.map((r, i) => `${i + 1}. ${r}`)
-      .join("\n")}`;
+  if (isRefinement) {
+    // Structured refinement prompt: keep original brief for context, include current HTML,
+    // and make the required changes structurally prominent — not buried after a huge HTML blob.
+    const refinementList = refinements!.map((r, i) => `${i + 1}. ${r}`).join("\n");
+    promptText = `ORIGINAL BRIEF (for context — this describes the business and design direction):
+${prompt}
+
+---
+
+CURRENT HTML (the version to revise):
+${currentHtml}
+
+---
+
+⚠️ REQUIRED CHANGES FOR THIS REVISION (you MUST implement ALL of these — do not skip any):
+${refinementList}
+
+Output the complete revised self-contained HTML with these changes clearly applied. Do not explain anything.`;
   }
 
   // Try each model in priority order
@@ -155,7 +176,7 @@ BUILDING RULES (follow these strictly):
         ],
         generationConfig: {
           maxOutputTokens: 8192,
-          temperature: 0.85,
+          temperature: isRefinement ? 0.5 : 0.85,
         },
       }),
     });
@@ -179,6 +200,17 @@ BUILDING RULES (follow these strictly):
     const html = cleanHtml(rawText);
     const tokensUsed = payload.usageMetadata?.totalTokenCount || 0;
     const generationMs = Date.now() - start;
+
+    // Safeguard: detect near-identical output after refinement (failed refinement)
+    if (isRefinement && currentHtml) {
+      const prevLen = currentHtml.length;
+      const newLen = html.length;
+      const lenDiff = Math.abs(newLen - prevLen);
+      const lenRatio = lenDiff / Math.max(prevLen, 1);
+      if (lenRatio < 0.02 && prevLen > 500) {
+        console.warn(`[Gemini] Refinement produced near-identical output (length diff: ${lenDiff} chars, ${(lenRatio * 100).toFixed(1)}%). The model may have ignored the refinement instructions.`);
+      }
+    }
 
     return { html, tokensUsed, generationMs };
   }

@@ -315,6 +315,7 @@ function PreviewPage() {
           <ArrowLeft className="h-5 w-5" />
         </button>
         <iframe
+          key={demo.createdAt}
           title={`${lead.business} demo`}
           srcDoc={safeDemoHtml(demo.html)}
           className="h-full w-full border-0"
@@ -524,6 +525,7 @@ function PreviewPage() {
             </div>
           )}
           <iframe
+            key={demo.createdAt}
             title={`${lead.business} demo`}
             srcDoc={safeDemoHtml(demo.html)}
             className="h-full w-full border-0"
