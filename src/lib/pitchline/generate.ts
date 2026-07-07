@@ -281,7 +281,7 @@ export function generateDemoHtml(
     <p class="sub" style="margin:0 auto;">${d.story || "Join hundreds of happy customers."}</p>
   </section>` : ""}
 
-  <footer>© ${new Date().getFullYear()} ${lead.business} — demo by Trendtactics Digital · generated with ${provider === "claude" ? "Claude" : "Gemini"}${refinements.length ? ` · ${refinements.length} refinement(s)` : ""}</footer>
+  <footer>© ${new Date().getFullYear()} ${lead.business} — Built by Trendtactics Digital · generated with ${provider === "claude" ? "Claude" : "Gemini"}${refinements.length ? ` · ${refinements.length} refinement(s)` : ""}</footer>
 </div>
 </body>
 </html>`;

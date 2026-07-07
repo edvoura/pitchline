@@ -95,6 +95,7 @@ BUILDING RULES (follow these strictly):
   • Repeated quick links to the anchors used (Home, About, Services, Contact)
   • Contact recap (phone/WhatsApp/email as applicable)
   • Copyright line: "© {current_year} {business_name}. All rights reserved."
+  • A "Built by Trendtactics Digital" credit line (subtle and elegant)
   • Photo attribution if stock images were used: "Photos via Pexels" or "Photos via Unsplash"
 - MOBILE-FIRST RESPONSIVENESS (critical):
   • Build the base layout for small screens first, then use Tailwind responsive prefixes (sm:, md:, lg:) to scale up.
