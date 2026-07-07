@@ -75,10 +75,15 @@ function PreviewPage() {
 
     const contextDemo = demos[currentLeadId];
     if (contextDemo) {
+      // Always prefer in-memory demo (includes generating placeholder)
       setLocalDemo(contextDemo);
       setLoading(false);
+      // Skip DB fetch when we have an in-memory demo — avoids overwriting
+      // a generating-in-progress state with the stale old demo from the DB
+      return;
     }
 
+    // Only fetch from DB when there's no in-memory demo at all (e.g. direct URL navigation)
     async function fetchFromDb() {
       try {
         const [leadRes, demoRes] = await Promise.all([

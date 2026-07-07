@@ -530,10 +530,13 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
           const onStageChange = (stage: "planning" | "building") => {
             setState((s) => ({ ...s, generationStage: stage }));
           };
+          // Append a unique seed so each generation produces a genuinely different design variation
+          const seed = `\n\nGENERATION SEED (use this to inspire a unique design variation — do NOT output this seed): ${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+          const promptWithSeed = prompt.compiled + seed;
           if (effectiveProvider === "claude") {
-            result = await generateClaudeDemo(prompt.compiled, null, [], onStageChange);
+            result = await generateClaudeDemo(promptWithSeed, null, [], onStageChange);
           } else {
-            result = await generateGeminiDemo(prompt.compiled, null, [], onStageChange);
+            result = await generateGeminiDemo(promptWithSeed, null, [], onStageChange);
           }
         } else {
           console.log("[Pitchline] Running server-side generation...");

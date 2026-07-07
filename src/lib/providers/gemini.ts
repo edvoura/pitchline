@@ -155,7 +155,7 @@ BUILDING RULES (follow these strictly):
         ],
         generationConfig: {
           maxOutputTokens: 8192,
-          temperature: 0.3,
+          temperature: 0.85,
         },
       }),
     });

@@ -135,6 +135,7 @@ BUILDING RULES (follow these strictly):
     body: JSON.stringify({
       model: "claude-sonnet-4-20250514",
       max_tokens: 8000,
+      temperature: 0.85,
       system: systemInstruction,
       messages: [{ role: "user", content: promptText }],
     }),
