@@ -14,6 +14,7 @@ import {
   Download,
   Phone,
   MessageCircle,
+  ExternalLink,
 } from "lucide-react";
 import { PageHeader } from "@/components/pitchline/PageHeader";
 import { StatusBadge } from "@/components/pitchline/StatusBadge";
@@ -44,7 +45,7 @@ function EmailFlag({ status }: { status: Lead["emailStatus"] }) {
 }
 
 function LeadsPage() {
-  const { leads, setQualification, setActiveLead } = usePitchline();
+  const { leads, demos, setQualification, setActiveLead } = usePitchline();
   const { setImportOpen, setAddOpen, commandOpen, helpOpen, importOpen, addOpen } = useUI();
   const navigate = useNavigate();
 
@@ -355,12 +356,24 @@ function LeadsPage() {
                           <X className="h-4 w-4" />
                         </IconBtn>
                       )}
-                      <button
-                        onClick={() => generate(l.id)}
-                        className="ml-1 flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90"
-                      >
-                        Generate <ArrowRight className="h-3.5 w-3.5" />
-                      </button>
+                      {demos[l.id] ? (
+                        <button
+                          onClick={() => {
+                            setActiveLead(l.id);
+                            navigate({ to: "/preview", search: { fullscreen: true } });
+                          }}
+                          className="ml-1 flex items-center gap-1 rounded-md border border-primary text-primary bg-transparent px-2.5 py-1 text-xs font-semibold hover:bg-primary/10 transition"
+                        >
+                          View Demo <ExternalLink className="h-3.5 w-3.5" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => generate(l.id)}
+                          className="ml-1 flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90"
+                        >
+                          Generate <ArrowRight className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

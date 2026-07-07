@@ -74,6 +74,7 @@ export interface DemoRecord {
   ready: boolean;
   tokensUsed?: number | null;
   generationMs?: number | null;
+  publicSlug?: string | null;
 }
 
 export interface Template {

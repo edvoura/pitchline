@@ -179,6 +179,7 @@ function mapDemoFromDb(db: any): DemoRecord {
     ready: !!db.ready,
     tokensUsed: db.tokens_used || null,
     generationMs: db.generation_ms || null,
+    publicSlug: db.public_slug || null,
   };
 }
 
@@ -192,6 +193,7 @@ function mapDemoToDb(d: DemoRecord): any {
     ready: d.ready,
     tokens_used: d.tokensUsed,
     generation_ms: d.generationMs,
+    public_slug: d.publicSlug || null,
   };
 }
 
@@ -485,6 +487,7 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
       if (!lead || !prompt) return null;
 
       // Optimistic update so the preview screen shows a loading spinner immediately
+      const existingDemo = state.demos[leadId];
       const tempDemo: DemoRecord = {
         leadId,
         html: "<!-- generating -->",
@@ -492,6 +495,7 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
         refinements: [],
         createdAt: new Date().toISOString(),
         ready: false,
+        publicSlug: existingDemo?.publicSlug || Math.random().toString(36).substring(2, 10),
       };
 
       setState((s) => ({
@@ -549,6 +553,7 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
           ready: false,
           tokensUsed: result.tokensUsed,
           generationMs: result.generationMs,
+          publicSlug: existingDemo?.publicSlug || tempDemo.publicSlug,
         };
 
         await Promise.all([

@@ -12,6 +12,9 @@ import {
   CheckSquare,
   AlertCircle,
   Mail,
+  ArrowLeft,
+  Share2,
+  ExternalLink,
 } from "lucide-react";
 import { PageHeader } from "@/components/pitchline/PageHeader";
 import { usePitchline } from "@/lib/pitchline/store";
@@ -22,6 +25,10 @@ import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/preview")({
   head: () => ({ meta: [{ title: "Demo Preview — Pitchline" }] }),
+  validateSearch: (search: Record<string, unknown>): { leadId?: string; fullscreen?: boolean } => ({
+    leadId: (search.leadId as string) || undefined,
+    fullscreen: (search.fullscreen === "true" || search.fullscreen === true) ? true : undefined,
+  }),
   component: PreviewPage,
 });
 
@@ -29,12 +36,15 @@ function PreviewPage() {
   const { leads, demos, activeLeadId, setActiveLead, generateDemo, refineDemo, markReady, setStage, generationStage } =
     usePitchline();
   const navigate = useNavigate();
+  const searchParams = Route.useSearch();
+  const searchLeadId = searchParams.leadId;
+  const fullscreen = searchParams.fullscreen;
 
   const [localDemo, setLocalDemo] = useState<any>(null);
   const [localLead, setLocalLead] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const currentLeadId = activeLeadId || (typeof window !== "undefined" ? localStorage.getItem("pitchline_active_lead_id") : null);
+  const currentLeadId = searchLeadId || activeLeadId || (typeof window !== "undefined" ? localStorage.getItem("pitchline_active_lead_id") : null);
 
   useEffect(() => {
     if (!currentLeadId) {
@@ -138,7 +148,7 @@ function PreviewPage() {
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const isGenerating = busy || !!(demo && demo.html === "<!-- generating -->") || generationStage !== null;
-  const [showChecklist, setShowChecklist] = useState(true);
+  const [showChecklist, setShowChecklist] = useState(false);
 
   const checklistConfig = [
     { id: "hero", label: "Hero communicates what this is within 3 seconds", hint: "Structural: Make the hero headline and value proposition more direct." },
@@ -160,16 +170,35 @@ function PreviewPage() {
 
   const uncheckedItems = checklistConfig.filter((item) => !checkedItems[item.id]);
 
-  const run = async (fn: () => Promise<any> | any) => {
+  const run = async (fn: () => Promise<any> | any, showChecklistAfter = false) => {
     setBusy(true);
     try {
       await fn();
+      if (showChecklistAfter) {
+        setShowChecklist(true);
+      }
     } catch (err: any) {
       toast.error(err.message || "Failed to execute AI action");
       console.error(err);
     } finally {
       setBusy(false);
     }
+  };
+
+  const [linkCopied, setLinkCopied] = useState(false);
+  const shareUrl = demo && demo.publicSlug && typeof window !== "undefined"
+    ? `${window.location.origin}/d/${demo.publicSlug}`
+    : "";
+
+  const copyShareLink = async () => {
+    if (!shareUrl) {
+      toast.error("No public link available. Please generate or regenerate first.");
+      return;
+    }
+    await navigator.clipboard.writeText(shareUrl);
+    setLinkCopied(true);
+    toast.success("Public demo share link copied!");
+    setTimeout(() => setLinkCopied(false), 1500);
   };
 
   const copyCode = async () => {
@@ -254,6 +283,26 @@ function PreviewPage() {
     );
   }
 
+  if (fullscreen) {
+    return (
+      <div className="fixed inset-0 z-50 h-screen w-screen bg-white">
+        <button
+          onClick={() => window.history.back()}
+          className="absolute left-4 top-4 z-50 flex items-center justify-center h-10 w-10 rounded-full bg-slate-900/60 hover:bg-slate-900/90 text-white backdrop-blur-md shadow-md border border-white/20 transition-all hover:scale-105 duration-200"
+          title="Return to Dashboard"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <iframe
+          title={`${lead.business} demo`}
+          srcDoc={demo.html}
+          className="h-full w-full border-0"
+          sandbox="allow-scripts" // Crucial: allow-same-origin removed to force unique origin. This prevents anchor clicks from navigating parent window to /preview and looping!
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full flex-col animate-fade-in">
       <PageHeader
@@ -292,7 +341,7 @@ function PreviewPage() {
         {/* toolbar */}
         <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => run(() => generateDemo(lead.id))}
+            onClick={() => run(() => generateDemo(lead.id), true)}
             disabled={isGenerating}
             className="flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium transition hover:bg-accent disabled:opacity-50"
           >
@@ -307,7 +356,7 @@ function PreviewPage() {
               className="h-7 flex-1 bg-transparent px-1 text-sm outline-none placeholder:text-muted-foreground/70"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && refineText.trim()) {
-                  run(() => refineDemo(lead.id, refineText.trim()));
+                  run(() => refineDemo(lead.id, refineText.trim()), true);
                   setRefineText("");
                 }
               }}
@@ -315,7 +364,7 @@ function PreviewPage() {
             <button
               onClick={() => {
                 if (!refineText.trim()) return;
-                run(() => refineDemo(lead.id, refineText.trim()));
+                run(() => refineDemo(lead.id, refineText.trim()), true);
                 setRefineText("");
               }}
               disabled={isGenerating || !refineText.trim()}
@@ -330,13 +379,22 @@ function PreviewPage() {
             className="flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium transition hover:bg-accent"
           >
             {copied ? <Check className="h-4 w-4 text-status-won" /> : <Copy className="h-4 w-4" />}
-            {copied ? "Copied" : "Copy code"}
+            {copied ? "Copied HTML" : "Copy HTML"}
           </button>
           <button
             onClick={download}
             className="flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium transition hover:bg-accent"
+            title="Download local static HTML file"
           >
-            <Download className="h-4 w-4" /> Export
+            <Download className="h-4 w-4" /> Download .html (Backup)
+          </button>
+          <button
+            onClick={copyShareLink}
+            disabled={!shareUrl}
+            className="flex items-center gap-1.5 rounded-md bg-emerald-600 px-3.5 py-1.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {linkCopied ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
+            {linkCopied ? "Copied Share Link" : "Copy Share Link"}
           </button>
           <button
             onClick={sendEmailOutreach}
@@ -447,8 +505,8 @@ function PreviewPage() {
           <iframe
             title={`${lead.business} demo`}
             srcDoc={demo.html}
-            className="h-full w-full"
-            sandbox="allow-scripts allow-same-origin"
+            className="h-full w-full border-0"
+            sandbox="allow-scripts" // Crucial: allow-same-origin removed to force unique origin. This prevents anchor clicks from navigating parent window to /preview and looping!
           />
         </div>
       </div>

@@ -7,5 +7,8 @@
     "api/health.py": {
       "runtime": "@vercel/python@4.3.0"
     }
-  }
+  },
+  "rewrites": [
+    { "source": "/d/:slug", "destination": "/api/demo/:slug" }
+  ]
 }

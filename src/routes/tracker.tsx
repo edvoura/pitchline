@@ -133,7 +133,7 @@ function TrackerPage() {
                         <button
                           onClick={() => {
                             setActiveLead(l.id);
-                            navigate({ to: "/preview" });
+                            navigate({ to: "/preview", search: { fullscreen: true } });
                           }}
                           className="flex items-center gap-1 text-xs text-primary hover:underline"
                         >
@@ -193,11 +193,22 @@ function TrackerPage() {
                 </div>
                 <div className="flex-1 space-y-2 p-2">
                   {items.map((l) => (
-                    <div key={l.id} className="rounded-md border border-border bg-card p-2.5">
+                    <div key={l.id} className="rounded-md border border-border bg-card p-2.5 flex flex-col gap-1">
                       <div className="text-sm font-medium">{l.business}</div>
                       <div className="text-[11px] text-muted-foreground">{l.industry} · {l.location}</div>
                       {l.notes && (
-                        <div className="mt-1.5 line-clamp-2 text-[11px] text-muted-foreground/80">{l.notes}</div>
+                        <div className="mt-1 line-clamp-2 text-[11px] text-muted-foreground/80">{l.notes}</div>
+                      )}
+                      {demos[l.id] && (
+                        <button
+                          onClick={() => {
+                            setActiveLead(l.id);
+                            navigate({ to: "/preview", search: { fullscreen: true } });
+                          }}
+                          className="mt-1.5 self-start flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                        >
+                          View demo <ExternalLink className="h-2.5 w-2.5" />
+                        </button>
                       )}
                     </div>
                   ))}

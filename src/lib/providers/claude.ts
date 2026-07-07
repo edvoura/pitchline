@@ -84,6 +84,18 @@ BUILDING RULES (follow these strictly):
   1. Spacing rhythm, visual hierarchy, and contrast must be premium and obvious at a glance.
   2. Never produce a flat static page with no motion — add hover transitions on buttons/cards, smooth scroll behavior, and scroll-triggered entry animations (using Tailwind transitions or simple custom styles).
   3. Include tasteful micro-interactions (e.g. interactive accordion, animated stats counter, interactive dropdowns) using Alpine.js and Tailwind transitions.
+- FOOTER (#footer) is REQUIRED on every demo. Include:
+  • Business name + short tagline
+  • Repeated quick links to the anchors used (Home, About, Services, Contact)
+  • Contact recap (phone/WhatsApp/email as applicable)
+  • Copyright line: "© {current_year} {business_name}. All rights reserved."
+  • Photo attribution if stock images were used: "Photos via Pexels" or "Photos via Unsplash"
+- MOBILE-FIRST RESPONSIVENESS (critical):
+  • Build the base layout for small screens first, then use Tailwind responsive prefixes (sm:, md:, lg:) to scale up.
+  • Nav MUST collapse to a hamburger menu below md breakpoint (use Alpine.js x-show for the mobile menu toggle — this is the ONLY acceptable use of x-show).
+  • Images and carousels must never overflow the viewport on mobile.
+  • Font sizes must remain legible at mobile width (min 14px effective).
+  • Touch targets (buttons, nav links) must be large enough to tap comfortably (min 44px touch target).
 - Output ONLY valid, raw, production-ready, self-contained HTML. Do not include markdown code block backticks (like \`\`\`html) or conversational text. Start directly with <!DOCTYPE html>.`;
 
   if (onStageChange) onStageChange("building");
