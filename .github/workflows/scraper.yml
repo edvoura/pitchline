@@ -2,8 +2,8 @@ name: Lead Scraper — Global Matrix
 
 on:
   schedule:
-    # Run automatically every Monday at midnight
-    - cron: "0 0 * * 1"
+    # Run automatically every Monday and Thursday at midnight
+    - cron: "0 0 * * 1,4"
   workflow_dispatch:
     inputs:
       region:
@@ -13,7 +13,7 @@ on:
       sector:
         description: "Target Sector (dentists, roofing contractors, restaurants, saas, or all)"
         required: true
-        default: "dentists"
+        default: "all"
       query:
         description: "Custom comma-separated query list (overrides region/sector if provided)"
         required: false
@@ -52,7 +52,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           MAILBOXLAYER_API_KEY: ${{ secrets.MAILBOXLAYER_API_KEY }}
           REGION: ${{ github.event.inputs.region || 'nigeria' }}
-          SECTOR: ${{ github.event.inputs.sector || 'dentists' }}
+          SECTOR: ${{ github.event.inputs.sector || 'all' }}
           QUERY: ${{ github.event.inputs.query || '' }}
           LIMIT: ${{ github.event.inputs.limit || '5' }}
         run: |
