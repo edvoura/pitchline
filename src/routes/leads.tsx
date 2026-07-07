@@ -233,6 +233,7 @@ function LeadsPage() {
                 <th className="px-3 py-2.5 font-medium">Industry</th>
                 <th className="px-3 py-2.5 font-medium">Location</th>
                 <th className="px-3 py-2.5 text-center font-medium">Site</th>
+                <th className="px-3 py-2.5 text-center font-medium">Brand</th>
                 <th className="px-3 py-2.5 text-center font-medium">Email</th>
                 <th className="px-3 py-2.5 font-medium">Qualification</th>
                 <th className="px-3 py-2.5 font-medium">Stage</th>
@@ -273,6 +274,18 @@ function LeadsPage() {
                       <Globe className="mx-auto h-4 w-4 text-muted-foreground" aria-label="Has website" />
                     ) : (
                       <span className="mono text-[11px] text-status-qualified">none</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    {l.brandSource && l.brandSource !== 'none' && l.brandColors?.length ? (
+                      <div className="flex items-center justify-center gap-1" title={`Brand: ${l.brandColors.join(', ')}${l.brandFonts?.length ? ' · ' + l.brandFonts.join(', ') : ''}`}>
+                        {l.brandColors.slice(0, 3).map((c, ci) => (
+                          <span key={ci} className="inline-block h-3 w-3 rounded-full border border-border/40" style={{ backgroundColor: c }} />
+                        ))}
+                        <Check className="h-3 w-3 text-status-won" />
+                      </div>
+                    ) : (
+                      <span className="flex justify-center text-xs text-muted-foreground">—</span>
                     )}
                   </td>
                   <td className="px-3 py-2.5">

@@ -55,6 +55,13 @@ TYPOGRAPHY: ${typography}
 COLOR: ${color}
 ANIMATION: ${animation}
 VISUAL REFERENCE: ${visualRef}
+${lead.brandSource && lead.brandSource !== 'none' ? `
+BRAND CONTEXT (use these instead of generic assumptions):
+Colors: ${(lead.brandColors || []).join(', ') || 'not available'}
+Logo: ${lead.brandLogoUrl || 'none — use a clean text-based wordmark in the primary brand color'}
+Fonts: ${(lead.brandFonts || []).join(', ') || 'not available — use direction typography'}
+Tone: ${lead.brandToneSummary || 'not available'}
+NOTE: When brand colors/fonts are present, they take precedence over the Mood/Typography/Color direction above.` : ''}
 
 SECTIONS (in order):
 ${sections}

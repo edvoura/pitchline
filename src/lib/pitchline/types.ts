@@ -34,6 +34,11 @@ export interface Lead {
   phone?: string | null;
   preferredChannel?: string | null;
   whatsappLink?: string | null;
+  brandColors?: string[] | null;
+  brandLogoUrl?: string | null;
+  brandFonts?: string[] | null;
+  brandToneSummary?: string | null;
+  brandSource?: 'website' | 'places_photos' | 'none' | null;
 }
 
 export interface PromptDirection {

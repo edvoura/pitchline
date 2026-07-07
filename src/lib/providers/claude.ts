@@ -73,6 +73,7 @@ CRITICAL LAYOUT RULES:
 - Add smooth scrolling behavior: include \`<style>html { scroll-behavior: smooth; }</style>\` in the head.
 
 BUILDING RULES (follow these strictly):
+- If a BRAND CONTEXT block is present in the prompt, use the exact brand colors as your primary palette (e.g. for backgrounds, accents, buttons), the brand fonts as typography, and the brand logo URL as the header icon/image. These override any generic Mood/Typography/Color direction.
 - Style the page using Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
 - Use Alpine.js via CDN ONLY for small interactive components (mobile menu toggle, accordion expand/collapse, modal open/close): <script src="https://unpkg.com/alpinejs" defer></script>
 - DO NOT use Alpine.js to control page section visibility. Sections must always be rendered and visible.

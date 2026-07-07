@@ -87,6 +87,11 @@ function mapLeadFromDb(db: any): Lead {
     phone: db.phone || null,
     preferredChannel: db.preferred_channel || "email",
     whatsappLink: db.whatsapp_link || null,
+    brandColors: db.brand_colors || null,
+    brandLogoUrl: db.brand_logo_url || null,
+    brandFonts: db.brand_fonts || null,
+    brandToneSummary: db.brand_tone_summary || null,
+    brandSource: db.brand_source || 'none',
   };
 }
 
@@ -111,6 +116,11 @@ function mapLeadToDb(l: Partial<Lead>): any {
   if (l.phone !== undefined) out.phone = l.phone;
   if (l.preferredChannel !== undefined) out.preferred_channel = l.preferredChannel;
   if (l.whatsappLink !== undefined) out.whatsapp_link = l.whatsappLink;
+  if (l.brandColors !== undefined) out.brand_colors = l.brandColors;
+  if (l.brandLogoUrl !== undefined) out.brand_logo_url = l.brandLogoUrl;
+  if (l.brandFonts !== undefined) out.brand_fonts = l.brandFonts;
+  if (l.brandToneSummary !== undefined) out.brand_tone_summary = l.brandToneSummary;
+  if (l.brandSource !== undefined) out.brand_source = l.brandSource;
   return out;
 }
 

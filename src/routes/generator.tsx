@@ -207,6 +207,50 @@ function GeneratorPage() {
             </Field>
           )}
 
+          {/* Brand Intelligence reference (read-only) */}
+          {lead && lead.brandSource && lead.brandSource !== 'none' && (
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-primary">Brand Intelligence</span>
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                  from {lead.brandSource === 'website' ? 'website' : 'places'}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                {lead.brandColors?.length ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-muted-foreground">Colors:</span>
+                    {lead.brandColors.map((c, i) => (
+                      <span
+                        key={i}
+                        className="inline-block h-4 w-4 rounded-full border border-border/50"
+                        style={{ backgroundColor: c }}
+                        title={c}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+                {lead.brandFonts?.length ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-muted-foreground">Fonts:</span>
+                    {lead.brandFonts.map((f, i) => (
+                      <span key={i} className="rounded bg-surface px-1.5 py-0.5 text-[11px] font-medium text-foreground">{f}</span>
+                    ))}
+                  </div>
+                ) : null}
+                {lead.brandLogoUrl ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-muted-foreground">Logo:</span>
+                    <img src={lead.brandLogoUrl} alt="brand logo" className="h-5 w-5 rounded object-contain" />
+                  </div>
+                ) : null}
+              </div>
+              {lead.brandToneSummary ? (
+                <p className="mt-1.5 text-[11px] italic text-muted-foreground">"{lead.brandToneSummary}"</p>
+              ) : null}
+              <p className="mt-1.5 text-[10px] text-muted-foreground/70">These brand signals will be used automatically in the compiled prompt — they override the color/typography direction below.</p>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <Field label="Mood">
               <Chips options={MOODS} value={dir.mood} onChange={(v) => set("mood", v)} />

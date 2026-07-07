@@ -14,6 +14,7 @@ const SERP_API_KEY = process.env.SERP_API_KEY || process.env.serp_api;
 const MAILBOXLAYER_API_KEY = process.env.MAILBOXLAYER_API_KEY || process.env.mailboxlayer_api;
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 const API_HOST = process.env.API_HOST || "https://pitchline-psi.vercel.app";
 
 // Configurable scraping settings
@@ -139,6 +140,175 @@ function normalizePhoneNumber(phone, locationContext = "") {
   }
 
   return cleaned;
+}
+
+// Brand Intelligence Extraction
+function extractBrandIntel($, pageUrl) {
+  const brand = { colors: null, logoUrl: null, fonts: null, tone: null };
+  
+  // --- COLORS ---
+  // 1. Check <meta name="theme-color">
+  const themeColor = $('meta[name="theme-color"]').attr('content');
+  const colorSet = new Map(); // hex -> count
+  if (themeColor && /^#[0-9a-fA-F]{3,6}$/.test(themeColor.trim())) {
+    colorSet.set(themeColor.trim().toLowerCase(), 10); // high weight
+  }
+  
+  // 2. Scan inline styles and style blocks for hex/rgb colors
+  const colorRegex = /#(?:[0-9a-fA-F]{3}){1,2}/g;
+  const neutrals = new Set(['#fff', '#ffffff', '#000', '#000000', '#ccc', '#cccccc', '#ddd', '#dddddd', '#eee', '#eeeeee', '#f5f5f5', '#fafafa', '#333', '#333333', '#666', '#666666', '#999', '#999999', '#aaa', '#aaaaaa', '#bbb', '#bbbbbb']);
+  
+  const styleContent = $('style').text() + ' ' + $('[style]').map((_, el) => $(el).attr('style') || '').get().join(' ');
+  const matches = styleContent.match(colorRegex) || [];
+  for (const c of matches) {
+    const normalized = c.toLowerCase().length === 4 
+      ? '#' + c[1] + c[1] + c[2] + c[2] + c[3] + c[3] 
+      : c.toLowerCase();
+    if (!neutrals.has(normalized)) {
+      colorSet.set(normalized, (colorSet.get(normalized) || 0) + 1);
+    }
+  }
+  
+  if (colorSet.size > 0) {
+    brand.colors = [...colorSet.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([hex]) => hex);
+  }
+  
+  // --- LOGO ---
+  const appleTouchIcon = $('link[rel="apple-touch-icon"]').attr('href');
+  const favicon = $('link[rel="icon"]').attr('href') || $('link[rel="shortcut icon"]').attr('href');
+  const logoImg = $('img[src*="logo"], img[alt*="logo" i], img[class*="logo" i]').first().attr('src');
+  
+  const rawLogo = appleTouchIcon || logoImg || favicon;
+  if (rawLogo) {
+    try {
+      brand.logoUrl = new URL(rawLogo, pageUrl).href;
+    } catch {
+      brand.logoUrl = rawLogo;
+    }
+  }
+  
+  // --- FONTS ---
+  const fontNames = new Set();
+  // Google Fonts links
+  $('link[href*="fonts.googleapis.com"]').each((_, el) => {
+    const href = $(el).attr('href') || '';
+    const familyMatch = href.match(/family=([^&]+)/);
+    if (familyMatch) {
+      familyMatch[1].split('|').forEach(f => {
+        const name = decodeURIComponent(f.split(':')[0].replace(/\+/g, ' '));
+        if (name) fontNames.add(name);
+      });
+    }
+  });
+  // font-family in styles
+  const fontFamilyRegex = /font-family:\s*['"]?([^;'"}{]+)/gi;
+  let fm;
+  while ((fm = fontFamilyRegex.exec(styleContent)) !== null) {
+    const firstFont = fm[1].split(',')[0].trim().replace(/['"]|!important/g, '');
+    if (firstFont && !['inherit', 'initial', 'sans-serif', 'serif', 'monospace', 'cursive', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI'].includes(firstFont)) {
+      fontNames.add(firstFont);
+    }
+  }
+  if (fontNames.size > 0) {
+    brand.fonts = [...fontNames].slice(0, 2);
+  }
+  
+  // --- TONE (text extraction for AI) ---
+  const title = $('title').text().trim();
+  const metaDesc = $('meta[name="description"]').attr('content') || '';
+  const h1 = $('h1').first().text().trim();
+  const aboutText = $('section, div').filter((_, el) => {
+    const text = $(el).attr('class') || '';
+    return /about|hero|intro/i.test(text);
+  }).first().text().trim().substring(0, 300);
+  brand.tone = [title, metaDesc, h1, aboutText].filter(Boolean).join(' | ').substring(0, 500);
+  
+  return brand;
+}
+
+// AI-powered brand tone summarization via Gemini
+async function summarizeBrandTone(rawTextSignals) {
+  if (!GEMINI_API_KEY || !rawTextSignals || rawTextSignals.length < 10) {
+    return null;
+  }
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: `Based on the following text from a business website, summarize this business's brand voice in one sentence (e.g. "warm and approachable", "sleek and professional", "playful and bold"). Output ONLY the one-sentence summary, nothing else.\n\nText: ${rawTextSignals.substring(0, 500)}`
+          }]
+        }],
+        generationConfig: { maxOutputTokens: 60, temperature: 0.2 },
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+  } catch (err) {
+    console.warn("[BrandIntel] Tone summarization failed:", err.message);
+    return null;
+  }
+}
+
+// Places-photo brand extraction fallback (for businesses without websites)
+async function extractBrandFromPlaces(candidate) {
+  const brand = { colors: null, logoUrl: null, fonts: null, tone: null };
+
+  // Try to extract dominant colors from Places photos
+  if (GOOGLE_PLACES_API_KEY && candidate.raw?.photos?.length > 0) {
+    try {
+      let sharp;
+      try { sharp = (await import("sharp")).default; } catch { sharp = null; }
+
+      if (sharp) {
+        const photoRef = candidate.raw.photos[0].photo_reference;
+        const photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photoRef}&key=${GOOGLE_PLACES_API_KEY}`;
+        const photoRes = await fetch(photoUrl);
+        if (photoRes.ok) {
+          const buffer = Buffer.from(await photoRes.arrayBuffer());
+          // Resize to tiny image and extract dominant colors via pixel stats
+          const { dominant } = await sharp(buffer).resize(50, 50, { fit: "cover" }).stats();
+          if (dominant) {
+            const toHex = (r, g, b) => "#" + [r, g, b].map(c => c.toString(16).padStart(2, "0")).join("");
+            const domColor = toHex(dominant.r, dominant.g, dominant.b);
+            // Get a complementary set by adjusting channels
+            const { channels } = await sharp(buffer).resize(10, 10, { fit: "cover" }).stats();
+            const colors = [domColor];
+            if (channels?.[0] && channels?.[1] && channels?.[2]) {
+              const c2 = toHex(
+                Math.min(255, Math.round(channels[0].mean * 0.7)),
+                Math.min(255, Math.round(channels[1].mean * 0.7)),
+                Math.min(255, Math.round(channels[2].mean * 0.7))
+              );
+              if (c2 !== domColor) colors.push(c2);
+            }
+            brand.colors = colors.slice(0, 3);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`[BrandIntel] Places photo color extraction failed: ${err.message}`);
+    }
+  }
+
+  // Use category/type + reviews for tone
+  const types = candidate.raw?.types || [];
+  const reviews = candidate.raw?.reviews?.slice(0, 2)?.map(r => r.text).join(" ") || "";
+  const typeStr = types.slice(0, 3).join(", ");
+
+  if (GEMINI_API_KEY && (typeStr || reviews)) {
+    const toneText = `Business type: ${typeStr}. ${reviews ? "Customer reviews: " + reviews.substring(0, 300) : ""}`;
+    brand.tone = await summarizeBrandTone(toneText);
+  }
+
+  return brand;
 }
 
 // Harvesting Candidate fetchers with retry and rate-limit detection
@@ -325,6 +495,7 @@ async function scrapeSingleQuery(query) {
     .map((c) => ({ url: c.website, placeId: c.placeId }));
 
   const crawledEmailsMap = new Map();
+  const crawledBrandMap = new Map();
 
   if (urlsToCrawl.length > 0) {
     console.log(`[Crawlee] Enqueueing ${urlsToCrawl.length} websites for email harvesting...`);
@@ -346,6 +517,13 @@ async function scrapeSingleQuery(query) {
             crawledEmailsMap.set(placeId, new Set());
           }
           validMatches.forEach((email) => crawledEmailsMap.get(placeId).add(email.toLowerCase()));
+        }
+
+        // Brand intelligence extraction
+        const brandIntel = extractBrandIntel($, request.url);
+        request.userData.brandIntel = brandIntel;
+        if (!crawledBrandMap.has(placeId)) {
+          crawledBrandMap.set(placeId, brandIntel);
         }
 
         await enqueueLinks({
@@ -372,6 +550,19 @@ async function scrapeSingleQuery(query) {
       await crawler.run(initialRequests);
     } catch (err) {
       console.warn("[Crawlee] Crawler run notice:", err.message);
+    }
+
+    // AI-enrich brand tone summaries for crawled brands
+    if (GEMINI_API_KEY) {
+      for (const [placeId, brand] of crawledBrandMap.entries()) {
+        if (brand?.tone && brand.tone.length > 10) {
+          const aiTone = await summarizeBrandTone(brand.tone);
+          if (aiTone) {
+            brand.tone = aiTone;
+            crawledBrandMap.set(placeId, brand);
+          }
+        }
+      }
     }
   }
 
@@ -484,6 +675,17 @@ async function scrapeSingleQuery(query) {
       runStats.leadsWrittenNew++;
     }
 
+    // Brand intelligence: prefer website-crawled data, fallback to Places photos
+    let brandData = crawledBrandMap.get(cand.placeId);
+    let brandSource = cand.website ? 'website' : 'none';
+    if (!brandData?.colors && !cand.website) {
+      const placesBrand = await extractBrandFromPlaces(cand);
+      if (placesBrand.colors || placesBrand.tone) {
+        brandData = placesBrand;
+        brandSource = 'places_photos';
+      }
+    }
+
     finalLeads.push({
       business: cand.businessName,
       industry: query.split(" in ")[0] || "General Scrape",
@@ -499,6 +701,11 @@ async function scrapeSingleQuery(query) {
       source: "scraper",
       source_place_id: cand.placeId,
       raw_scrape: cand.raw,
+      brand_colors: brandData?.colors || null,
+      brand_logo_url: brandData?.logoUrl || null,
+      brand_fonts: brandData?.fonts || null,
+      brand_tone_summary: brandData?.tone || null,
+      brand_source: brandSource,
     });
   }
 
