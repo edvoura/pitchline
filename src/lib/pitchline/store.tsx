@@ -35,6 +35,7 @@ interface PitchlineState {
 
 interface PitchlineContextValue extends PitchlineState {
   session: any;
+  sessionLoading: boolean;
   user: any;
   signOut: () => Promise<void>;
   setActiveLead: (id: string | null) => void;
@@ -233,12 +234,16 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
   });
 
   const [session, setSession] = useState<any>(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
   const user = session?.user ?? null;
 
   // Sync auth state
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      setSessionLoading(false);
+    }).catch(() => {
+      setSessionLoading(false);
     });
 
     const {
@@ -257,8 +262,10 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
   // Load from Supabase when session becomes active
   useEffect(() => {
     if (!session) {
-      // Clear data if logged out
-      setState((s) => ({ ...s, leads: [], templates: [], prompts: {}, demos: {} }));
+      // Only clear data on genuine logout, not during initial session check
+      if (!sessionLoading) {
+        setState((s) => ({ ...s, leads: [], templates: [], prompts: {}, demos: {} }));
+      }
       return;
     }
 
@@ -305,7 +312,7 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
       }
     }
     loadData();
-  }, [session]);
+  }, [session, sessionLoading]);
 
   const setActiveLead = useCallback((id: string | null) => {
     setState((s) => ({ ...s, activeLeadId: id }));
@@ -704,6 +711,7 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
     () => ({
       ...state,
       session,
+      sessionLoading,
       user,
       signOut,
       setActiveLead,
@@ -724,6 +732,7 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
     [
       state,
       session,
+      sessionLoading,
       user,
       signOut,
       setActiveLead,

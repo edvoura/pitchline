@@ -148,7 +148,22 @@ function RootComponent() {
 }
 
 function RootLayoutComponent() {
-  const { session } = usePitchline();
+  const { session, sessionLoading } = usePitchline();
+
+  // While session is still being checked, show a loading state — NOT the login form
+  if (sessionLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="relative">
+            <div className="h-10 w-10 rounded-full border-2 border-primary/30" />
+            <div className="absolute inset-0 h-10 w-10 animate-spin rounded-full border-2 border-transparent border-t-primary" />
+          </div>
+          <span className="text-sm text-muted-foreground">Loading…</span>
+        </div>
+      </div>
+    );
+  }
 
   if (!session) {
     return <Login />;
