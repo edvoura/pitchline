@@ -56,6 +56,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         <p className="mt-2 text-sm text-muted-foreground">
           Something went wrong. Try refreshing or head back to Leads.
         </p>
+        <div className="mt-4 p-4 rounded bg-destructive/15 text-left text-xs text-destructive-foreground font-mono overflow-auto max-h-40">
+          <p className="font-semibold">{error.message || String(error)}</p>
+          {error.stack && <pre className="mt-2 opacity-80 whitespace-pre-wrap">{error.stack}</pre>}
+        </div>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {
