@@ -140,4 +140,5 @@ export const SECTION_OPTIONS = [
   "Social Proof",
   "CTA",
   "Closing",
+  "Footer",
 ];

@@ -43,14 +43,18 @@ export function compilePrompt(lead: Lead, d: PromptDirection, images: string[] =
   const visualRef = d.visualReference || "Linear / Apple aesthetic";
   const heroStyle = d.heroStyle || "static";
 
-  const sections = d.sections.length ? d.sections.join(", ") : "Hero, Features, Social Proof, CTA, Closing";
+  let sectionsList = d.sections.length ? [...d.sections] : ["Hero", "Features", "Social Proof", "CTA", "Closing"];
+  if (!sectionsList.includes("Footer")) {
+    sectionsList.push("Footer");
+  }
+  const sections = sectionsList.join(", ");
   const ctaFocus = d.ctaFocus || "Book / Contact";
 
   const goal = `Create a high-converting digital presence concept (either a full-desktop landing page or a beautiful mobile web app concept enclosed in an elegant smartphone mockup device frame if appropriate for this business) for a ${lead.industry} business located in ${lead.location}, optimizing for the primary action: "${ctaFocus}".`;
 
   const heroStyleInstruction = heroStyle === "carousel"
-    ? `HERO STYLE: carousel. You MUST build an Alpine.js-powered image carousel using 2-3 of the supplied AVAILABLE IMAGES, with clear previous/next chevron buttons, indicators, and automatic slide rotation (auto-rotate).`
-    : `HERO STYLE: static. Use a single beautiful hero image layout from the supplied AVAILABLE IMAGES.`;
+    ? `HERO STYLE: carousel. You MUST build an Alpine.js-powered image carousel using 2-3 of the supplied AVAILABLE IMAGES, with clear previous/next chevron buttons, indicators, and automatic slide rotation (auto-rotate). Each slide must display the image as a background with a text overlay container.`
+    : `HERO STYLE: static. The Hero section MUST feature a large, high-quality background image using one of the AVAILABLE IMAGES, with a parallax scrolling effect (using background-attachment: fixed). The text inside the Hero section MUST be styled inside an overlaid glassmorphic card (with blur backdrop) to guarantee readability and high contrast.`;
 
   const sectionRules = `
 REQUIRED SECTIONS SPECIFICATIONS (build as a single-page HTML file with nav anchors):
@@ -60,6 +64,7 @@ REQUIRED SECTIONS SPECIFICATIONS (build as a single-page HTML file with nav anch
 - Services / Features (#services): Outcome-framed list of what the business does (reframe features around customer benefits).
 - Blog / Insights (#blog): Optional (only if appropriate for this industry e.g. consultancy, creative agency. Do NOT include for a dentist or local medical clinic). Show 2-3 preview post cards.
 - Contact (#contact): Details, custom form, phone/WhatsApp CTA (preferred channel: ${lead.preferredChannel || 'email'}).
+- Footer (#footer): A rich, high-quality, professional agency footer with columns for brand/tagline, navigation quick links, contact info, and legal copyright/attributions.
 `;
 
   const imagesBlock = images.length > 0

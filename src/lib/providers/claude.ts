@@ -103,13 +103,19 @@ BUILDING RULES (follow these strictly):
   1. Spacing rhythm, visual hierarchy, and contrast must be premium and obvious at a glance.
   2. Never produce a flat static page with no motion — add hover transitions on buttons/cards, smooth scroll behavior, and scroll-triggered entry animations (using Tailwind transitions or simple custom styles).
   3. Include tasteful micro-interactions (e.g. interactive accordion, animated stats counter, interactive dropdowns) using Alpine.js and Tailwind transitions.
-- FOOTER (#footer) is REQUIRED on every demo. Include:
-  • Business name + short tagline
-  • Repeated quick links to the anchors used (Home, About, Services, Contact)
-  • Contact recap (phone/WhatsApp/email as applicable)
-  • Copyright line: "© {current_year} {business_name}. All rights reserved."
-  • A "Built by Trendtactics Digital" credit line (subtle and elegant)
-  • Photo attribution if stock images were used: "Photos via Pexels" or "Photos via Unsplash"
+  4. HERO SECTION IMAGE & PARALLAX:
+     - The hero section (#home) MUST feature a large, high-quality, professional background image using one of the provided AVAILABLE IMAGES.
+     - It MUST have a PARALLAX scrolling effect. To do this, style the hero background container with standard parallax CSS properties: 'background-attachment: fixed; background-size: cover; background-position: center; background-repeat: no-repeat;'. Add a media query to fallback to 'background-attachment: scroll;' on mobile/tablet screens (max-width: 1024px) to keep it responsive and performant.
+     - The hero text, headers, and buttons MUST be placed inside an overlaid text box with glassmorphism or a semi-transparent dark backdrop overlay (e.g., Tailwind \`bg-black/50 backdrop-blur-md\` or \`bg-slate-900/60 p-8 rounded-2xl\`) so that all text has excellent, accessible contrast against the background image.
+     - NEVER use a plain colored background (like solid bg-slate-900) for the hero if AVAILABLE IMAGES are present.
+- FOOTER (#footer) is 100% REQUIRED on every single generation:
+  - It must NOT be skipped, truncated, or left minimal.
+  - Build it as a rich 3- or 4-column footer containing:
+    • Column 1: Business name, short descriptive tagline, and a subtle "Built by Trendtactics Digital" signature.
+    • Column 2: Navigation Links (Home, About, Services, Contact, etc.).
+    • Column 3: Contact Details (Phone, Email, Address, WhatsApp link).
+    • Column 4: Legals & Attributions (Copyright line: "© {current_year} {business_name}. All rights reserved.", photo attribution like "Photos via Pexels" or "Photos via Unsplash").
+  - Give the footer a rich dark background with high contrast text and appropriate padding.
 - MOBILE-FIRST RESPONSIVENESS (critical):
   • Build the base layout for small screens first, then use Tailwind responsive prefixes (sm:, md:, lg:) to scale up.
   • Nav MUST collapse to a hamburger menu below md breakpoint (use Alpine.js x-show for the mobile menu toggle — this is the ONLY acceptable use of x-show).

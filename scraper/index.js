@@ -14,13 +14,14 @@ const MAILBOXLAYER_API_KEY = process.env.MAILBOXLAYER_API_KEY || process.env.mai
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+const OPENSERP_URL = process.env.OPENSERP_URL || process.env.openserp_url;
 const API_HOST = process.env.API_HOST || "https://pitchline-psi.vercel.app";
 
 // Configurable scraping settings
 const REGION_PARAM = process.env.REGION || "all";
 const SECTOR_PARAM = process.env.SECTOR || "all";
 const RAW_QUERY = process.env.QUERY;
-const MAX_PLACES = parseInt(process.env.LIMIT || "5", 10);
+const MAX_PLACES = parseInt(process.env.LIMIT || "15", 10);
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("Missing Supabase credentials. Ensure SUPABASE_URL and a valid API key are set.");
@@ -43,7 +44,28 @@ const runStats = {
   whatsappLinksGenerated: 0,
   rateLimitStops: "N",
   mailboxlayerRateLimited: false,
+  openserpWebsitesDiscovered: 0,
+  openserpCallsSkipped: 0,
 };
+
+// Directories and aggregators to filter out during fallback website discovery
+const IGNORED_DOMAINS = [
+  "facebook.com", "instagram.com", "twitter.com", "linkedin.com", "youtube.com", "pinterest.com",
+  "yelp.com", "tripadvisor.com", "yellowpages.com", "mapquest.com", "groupon.com", "foursquare.com",
+  "wikipedia.org", "local.yahoo.com", "hotfrog.com", "cylex.com", "angis.com", "bbb.org",
+  "indeed.com", "glassdoor.com", "local.com", "yellowbook.com", "superpages.com", "whitepages.com"
+];
+
+function isPlausibleWebsite(urlStr) {
+  if (!urlStr) return false;
+  try {
+    const url = new URL(urlStr);
+    const host = url.hostname.toLowerCase().replace("www.", "");
+    return !IGNORED_DOMAINS.some(ignored => host === ignored || host.endsWith("." + ignored));
+  } catch {
+    return false;
+  }
+}
 
 // Regex and Validation Helpers
 const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
@@ -357,6 +379,66 @@ const OVERPASS_ENDPOINTS = [
   "https://overpass.kumi.systems/api/interpreter"
 ];
 
+async function geocodeLocation(location) {
+  const queries = [location];
+  if (location.includes(",")) {
+    queries.push(location.split(",")[0].trim());
+  }
+
+  for (const q of queries) {
+    console.log(`[Geocoding] Querying Nominatim for "${q}"...`);
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`;
+    try {
+      // Respect Nominatim fair-use policy (1 req/sec)
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const res = await fetch(url, {
+        headers: {
+          "User-Agent": "PitchlineScraper/1.0 (https://github.com/4poesy/pitchline; contact@pitchline.dev)"
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.length > 0) {
+          const lat = parseFloat(data[0].lat);
+          const lon = parseFloat(data[0].lon);
+          console.log(`[Geocoding] Successfully resolved "${q}" to (${lat}, ${lon}) - ${data[0].display_name}`);
+          return { lat, lon };
+        }
+      } else {
+        console.warn(`[Geocoding] Nominatim failed with status: ${res.status}`);
+      }
+    } catch (err) {
+      console.warn(`[Geocoding] Nominatim query failed for "${q}": ${err.message}`);
+    }
+  }
+  return null;
+}
+
+function buildOverpassAroundQuery(category, lat, lon, radius = 15000) {
+  const tagFilters = OSM_TAG_MAP[category.toLowerCase()];
+
+  if (!tagFilters) {
+    console.warn(`[Overpass] No OSM tag mapping for "${category}", falling back to name search`);
+    return `[out:json][timeout:30];
+(
+  node["name"~"${category}",i](around:${radius}, ${lat}, ${lon});
+  way["name"~"${category}",i](around:${radius}, ${lat}, ${lon});
+);
+out center tags;`;
+  }
+
+  const queryParts = tagFilters.flatMap((filter) => [
+    `  node${filter}(around:${radius}, ${lat}, ${lon});`,
+    `  way${filter}(around:${radius}, ${lat}, ${lon});`,
+  ]);
+
+  return `[out:json][timeout:30];
+(
+${queryParts.join("\n")}
+);
+out center tags;`;
+}
+
 async function fetchOverpassCandidates(query) {
   const parts = query.split(" in ");
   const category = (parts[0] || query).trim();
@@ -367,7 +449,16 @@ async function fetchOverpassCandidates(query) {
     return [];
   }
 
-  const overpassQL = buildOverpassQuery(category, location);
+  const coordinates = await geocodeLocation(location);
+  let overpassQL = "";
+
+  if (coordinates) {
+    console.log(`[Overpass] Using coordinate-based query at (${coordinates.lat}, ${coordinates.lon}) with 15km radius...`);
+    overpassQL = buildOverpassAroundQuery(category, coordinates.lat, coordinates.lon, 15000);
+  } else {
+    console.warn(`[Overpass] Geocoding failed, falling back to area-name boundary search for "${location}"`);
+    overpassQL = buildOverpassQuery(category, location);
+  }
   
   let res = null;
   let data = null;
@@ -514,6 +605,8 @@ async function fetchSerpApiCandidates(query) {
   }));
 }
 
+
+
 async function scrapeSingleQuery(query) {
   console.log(`\n========================================`);
   console.log(`[Scraper] Processing: "${query}"`);
@@ -530,10 +623,12 @@ async function scrapeSingleQuery(query) {
   try {
     candidates = await fetchOverpassCandidates(query);
   } catch (err) {
-    console.warn(`[Overpass] Failed to fetch candidates: ${err.message} (Reason: ${err.reason || "unknown"})`);
+    console.warn(`[Overpass] Failed to fetch candidates: ${err.message}`);
   }
 
-  // Fallback 1: Apify Scraper API (paid, optional)
+
+
+  // Fallback 2: Apify Scraper API (paid, optional)
   if (candidates.length === 0 && APIFY_API_KEY && !rateLimitStops) {
     try {
       candidates = await fetchApifyCandidates(query);
@@ -562,6 +657,50 @@ async function scrapeSingleQuery(query) {
   }
 
   runStats.businessesFound = candidates.length;
+
+  // OpenSERP website fallback discovery for website-less leads
+  if (OPENSERP_URL) {
+    console.log(`[OpenSERP] Checking if any candidates are missing websites to run fallback search...`);
+    for (const c of candidates) {
+      if (!c.website) {
+        console.log(`[OpenSERP] Fallback website search for "${c.businessName} ${runStats.location}"...`);
+        try {
+          // Respect rate limit: 1.5s delay
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+          const searchUrl = `${OPENSERP_URL}/google/search?text=${encodeURIComponent(c.businessName + " " + runStats.location)}&limit=3`;
+          
+          const res = await fetchWithRetry(searchUrl, {}, 1, 1000);
+          if (res.ok) {
+            const data = await res.json();
+            const results = Array.isArray(data) ? data : (data.results || []);
+            let foundPlausible = false;
+            
+            for (const item of results) {
+              const url = item.url || item.link;
+              if (url && isPlausibleWebsite(url)) {
+                c.website = url;
+                foundPlausible = true;
+                console.log(`[OpenSERP] Discovered website for "${c.businessName}": ${c.website}`);
+                runStats.openserpWebsitesDiscovered++;
+                break;
+              }
+            }
+            if (!foundPlausible) {
+              console.log(`[OpenSERP] No plausible website found for "${c.businessName}"`);
+            }
+          } else {
+            console.warn(`[OpenSERP] Search failed with status ${res.status}`);
+            if (res.status === 429 || res.status === 503) {
+              runStats.openserpCallsSkipped++;
+            }
+          }
+        } catch (err) {
+          console.warn(`[OpenSERP] Fallback request failed for "${c.businessName}": ${err.message}`);
+          runStats.openserpCallsSkipped++;
+        }
+      }
+    }
+  }
 
   // Crawl websites using Crawlee
   const urlsToCrawl = candidates
@@ -828,6 +967,8 @@ async function run() {
   console.log(`- Leads skipped (reason: fetch failed after retries): ${runStats.leadsSkippedFetchFailed}`);
   console.log(`- Emails found: ${runStats.emailsFound} | Phones found: ${runStats.phonesFound} | WhatsApp links generated: ${runStats.whatsappLinksGenerated}`);
   console.log(`- Rate-limit stops: ${runStats.rateLimitStops}`);
+  console.log(`- Websites discovered via OpenSERP fallback: ${runStats.openserpWebsitesDiscovered}`);
+  console.log(`- OpenSERP calls skipped (CAPTCHA/unavailable): ${runStats.openserpCallsSkipped}`);
   console.log(`========================================\n`);
 }
 
