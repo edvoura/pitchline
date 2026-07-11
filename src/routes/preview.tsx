@@ -15,6 +15,9 @@ import {
   ArrowLeft,
   Share2,
   ExternalLink,
+  Upload,
+  X,
+  Image,
 } from "lucide-react";
 import { PageHeader } from "@/components/pitchline/PageHeader";
 import { usePitchline } from "@/lib/pitchline/store";
@@ -166,9 +169,22 @@ function PreviewPage() {
   const demo = localDemo || (lead ? demos[lead.id] : null);
 
   const [refineText, setRefineText] = useState("");
+  const [refineScreenshot, setRefineScreenshot] = useState<string | null>(null);
+  const [refineScreenshotName, setRefineScreenshotName] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const isGenerating = busy || !!(demo && demo.html === "<!-- generating -->") || generationStage !== null;
+
+  const handleRefineFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setRefineScreenshotName(file.name);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setRefineScreenshot(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
   const [showChecklist, setShowChecklist] = useState(false);
 
   const checklistConfig = [
@@ -370,30 +386,60 @@ function PreviewPage() {
             <RefreshCw className={cn("h-4 w-4", isGenerating && "animate-spin")} /> Regenerate
           </button>
 
-          <div className="flex flex-1 items-center gap-2 rounded-md border border-border bg-surface px-2 py-1">
-            <input
-              value={refineText}
-              onChange={(e) => setRefineText(e.target.value)}
-              placeholder="Refine — e.g. 'make the hero bigger, add a menu section'"
-              className="h-7 flex-1 bg-transparent px-1 text-sm outline-none placeholder:text-muted-foreground/70"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && refineText.trim()) {
-                  run(() => refineDemo(lead.id, refineText.trim()), true);
+          <div className="flex flex-1 flex-col gap-1.5 min-w-[280px]">
+            <div className="flex items-center gap-2 rounded-md border border-border bg-surface px-2 py-1">
+              <input
+                value={refineText}
+                onChange={(e) => setRefineText(e.target.value)}
+                placeholder="Refine — e.g. 'make the hero bigger, add a menu section'"
+                className="h-7 flex-1 bg-transparent px-1 text-sm outline-none placeholder:text-muted-foreground/70"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (refineText.trim() || refineScreenshot)) {
+                    run(() => refineDemo(lead.id, refineText.trim() || "Apply styling reference", refineScreenshot), true);
+                    setRefineText("");
+                    setRefineScreenshot(null);
+                    setRefineScreenshotName(null);
+                  }
+                }}
+              />
+              
+              <label className="flex items-center justify-center p-1 rounded hover:bg-accent text-muted-foreground cursor-pointer transition" title="Upload reference screenshot template">
+                <Upload className="h-4 w-4" />
+                <input type="file" accept="image/*" className="hidden" onChange={handleRefineFileChange} />
+              </label>
+
+              <button
+                onClick={() => {
+                  run(() => refineDemo(lead.id, refineText.trim() || "Apply styling reference", refineScreenshot), true);
                   setRefineText("");
-                }
-              }}
-            />
-            <button
-              onClick={() => {
-                if (!refineText.trim()) return;
-                run(() => refineDemo(lead.id, refineText.trim()), true);
-                setRefineText("");
-              }}
-              disabled={isGenerating || !refineText.trim()}
-              className="flex items-center gap-1.5 rounded bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
-            >
-              <Wand2 className="h-3.5 w-3.5" /> Refine
-            </button>
+                  setRefineScreenshot(null);
+                  setRefineScreenshotName(null);
+                }}
+                disabled={isGenerating || (!refineText.trim() && !refineScreenshot)}
+                className="flex items-center gap-1.5 rounded bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
+              >
+                <Wand2 className="h-3.5 w-3.5" /> Refine
+              </button>
+            </div>
+            
+            {refineScreenshot && (
+              <div className="flex items-center justify-between gap-2 rounded border border-primary/30 bg-primary/5 px-2 py-0.5 text-[11px] self-start max-w-full">
+                <div className="flex items-center gap-1 overflow-hidden">
+                  <Image className="h-3 w-3 text-primary shrink-0" />
+                  <span className="truncate text-foreground/90 font-medium">{refineScreenshotName}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRefineScreenshot(null);
+                    setRefineScreenshotName(null);
+                  }}
+                  className="rounded p-0.5 hover:bg-foreground/10 text-muted-foreground transition"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            )}
           </div>
 
           <button

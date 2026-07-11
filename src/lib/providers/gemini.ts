@@ -52,6 +52,7 @@ export async function generateGeminiDemo(
   prompt: string,
   currentHtml?: string | null,
   refinements?: string[],
+  screenshotBase64?: string | null,
   onStageChange?: (stage: "planning" | "building") => void,
 ): Promise<{ html: string; tokensUsed: number; generationMs: number }> {
   const apiKey = (typeof process !== "undefined" ? process.env.GEMINI_API_KEY : undefined) || import.meta.env.VITE_GEMINI_API_KEY;
@@ -132,7 +133,12 @@ BUILDING RULES (follow these strictly):
 
   // Append revision-specific system instruction for refinements
   const systemInstruction = isRefinement
-    ? baseSystemInstruction + `\n\nIMPORTANT — REVISION MODE:\nThis is a revision request, NOT a fresh generation. You are being given the current HTML and a list of REQUIRED CHANGES.\nYou MUST visibly implement every single REQUIRED CHANGE listed below. Do NOT return a near-identical copy of the previous version.\nThe changes must be clearly reflected in the output HTML. If a change says "add a testimonials section", a testimonials section MUST appear. If it says "change button color to orange", the buttons MUST be orange.`
+    ? baseSystemInstruction + `\n\nIMPORTANT — REVISION MODE:\n` +
+      `This is a revision request. You are given the current HTML and a list of REQUIRED CHANGES.\n` +
+      `1. YOU MUST PRESERVE the entire structure of the existing site, including all simulated pages/views (Home, About, Services, Contact, Blog), all existing sections, the header navigation, and ESPECIALLY the Footer (#footer).\n` +
+      `2. NEVER delete, truncate, or omit any section or the footer unless explicitly asked to do so in the changes list.\n` +
+      `3. Visibly implement every single REQUIRED CHANGE listed below. Do NOT return a near-identical copy of the previous version if significant changes were requested.\n` +
+      `4. Keep the output fully self-contained, valid HTML. Start directly with <!DOCTYPE html>.`
     : baseSystemInstruction;
 
   if (onStageChange) onStageChange("building");
@@ -158,6 +164,21 @@ ${refinementList}
 Output the complete revised self-contained HTML with these changes clearly applied. Do not explain anything.`;
   }
 
+  let geminiImagePart = null;
+  if (screenshotBase64) {
+    const match = screenshotBase64.match(/^data:(image\/[a-zA-Z]+);base64,(.+)$/);
+    if (match) {
+      const mimeType = match[1];
+      const base64Data = match[2];
+      geminiImagePart = {
+        inlineData: {
+          mimeType: mimeType,
+          data: base64Data,
+        },
+      };
+    }
+  }
+
   // Try each model in priority order
   let lastError = "";
   for (const model of MODELS) {
@@ -175,8 +196,9 @@ Output the complete revised self-contained HTML with these changes clearly appli
           {
             parts: [
               {
-                text: `${systemInstruction}\n\n${promptText}`,
+                text: `${systemInstruction}\n\n${promptText}${geminiImagePart ? `\n\nREFERENCE TEMPLATE SCREENSHOT: Please use the attached screenshot as a visual reference / template for the styling, components, or layout of this website concept. Match its premium design aesthetic, visual hierarchy, alignment, card layouts, colors, or structural patterns where appropriate.` : ""}`,
               },
+              ...(geminiImagePart ? [geminiImagePart] : [])
             ],
           },
         ],

@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Copy, Check, Wand2, Sparkles, FileText, ChevronDown } from "lucide-react";
+import { Copy, Check, Wand2, Sparkles, FileText, ChevronDown, Upload, X, Image } from "lucide-react";
 import { PageHeader } from "@/components/pitchline/PageHeader";
 import { usePitchline } from "@/lib/pitchline/store";
 import {
@@ -201,7 +201,20 @@ function GeneratorPage() {
   const [provider, setProvider] = useState<Provider>("claude");
   const [compiled, setCompiled] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [screenshotBase64, setScreenshotBase64] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
   const [availableSections, setAvailableSections] = useState<string[]>(SECTION_OPTIONS);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileName(file.name);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setScreenshotBase64(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Sync availableSections if custom sections exist in loaded prompt
   useEffect(() => {
@@ -274,7 +287,7 @@ function GeneratorPage() {
   const doGenerate = async () => {
     if (!lead) return;
     const rec = await compileFor(lead.id, dir, provider);
-    generateDemo(lead.id, rec);
+    generateDemo(lead.id, rec, screenshotBase64);
     navigate({ to: "/preview" });
   };
 
@@ -432,6 +445,38 @@ function GeneratorPage() {
               />
             </Field>
           </div>
+
+          <Field label="Template Screenshot (Optional)">
+            <div className="relative flex items-center justify-center w-full">
+              {screenshotBase64 ? (
+                <div className="flex w-full items-center justify-between gap-3 rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <Image className="h-4 w-4 shrink-0 text-primary animate-pulse" />
+                    <span className="truncate text-xs font-medium text-foreground">{fileName}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setScreenshotBase64(null);
+                      setFileName(null);
+                    }}
+                    className="rounded p-1 hover:bg-foreground/10 text-muted-foreground transition"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center w-full h-24 border border-dashed border-border rounded-md cursor-pointer hover:bg-accent/30 hover:border-muted-foreground/40 transition duration-150">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <Upload className="h-5 w-5 text-muted-foreground mb-1.5" />
+                    <p className="text-xs text-muted-foreground">Upload a screenshot as reference template</p>
+                    <p className="text-[10px] text-muted-foreground/75 mt-0.5">PNG, JPG, JPEG up to 2MB</p>
+                  </div>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                </label>
+              )}
+            </div>
+          </Field>
 
           <Field label="Hero style">
             <Chips

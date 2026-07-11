@@ -7,6 +7,7 @@ interface GenerateDemoInput {
   provider: "claude" | "gemini";
   refinements: string[];
   currentHtml?: string | null;
+  screenshotBase64?: string | null;
 }
 
 interface GenerateDemoResult {
@@ -19,16 +20,16 @@ export const generateDemoFn = createServerFn({ method: "POST" })
   .validator((data: any) => data)
   .handler(async (ctx): Promise<GenerateDemoResult> => {
     const input = ctx && ctx.data ? ctx.data : ctx;
-    const { compiledPrompt, provider, refinements = [], currentHtml } = input || {};
+    const { compiledPrompt, provider, refinements = [], currentHtml, screenshotBase64 } = input || {};
 
     if (!compiledPrompt || !provider) {
       throw new Error("Invalid or missing 'compiledPrompt' or 'provider' fields.");
     }
 
     if (provider === "claude") {
-      return generateClaudeDemo(compiledPrompt, currentHtml, refinements);
+      return generateClaudeDemo(compiledPrompt, currentHtml, refinements, screenshotBase64);
     } else {
-      return generateGeminiDemo(compiledPrompt, currentHtml, refinements);
+      return generateGeminiDemo(compiledPrompt, currentHtml, refinements, screenshotBase64);
     }
   });
 

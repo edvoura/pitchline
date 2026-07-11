@@ -54,10 +54,12 @@ interface PitchlineContextValue extends PitchlineState {
   generateDemo: (
     leadId: string,
     passedPrompt?: PromptRecord,
+    screenshotBase64?: string | null,
   ) => Promise<DemoRecord | null>;
   refineDemo: (
     leadId: string,
     instruction: string,
+    screenshotBase64?: string | null,
   ) => Promise<DemoRecord | null>;
   markReady: (leadId: string) => Promise<void>;
   saveTemplate: (t: Template) => Promise<void>;
@@ -483,7 +485,7 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
   );
 
   const generateDemo = useCallback<PitchlineContextValue["generateDemo"]>(
-    async (leadId, passedPrompt) => {
+    async (leadId, passedPrompt, screenshotBase64) => {
       const lead = state.leads.find((l) => l.id === leadId);
       const prompt = passedPrompt || state.prompts[leadId];
       if (!lead || !prompt) return null;
@@ -535,9 +537,9 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
           const promptWithSeed = prompt.compiled + seed;
           try {
             if (effectiveProvider === "claude") {
-              result = await generateClaudeDemo(promptWithSeed, null, [], onStageChange);
+              result = await generateClaudeDemo(promptWithSeed, null, [], screenshotBase64, onStageChange);
             } else {
-              result = await generateGeminiDemo(promptWithSeed, null, [], onStageChange);
+              result = await generateGeminiDemo(promptWithSeed, null, [], screenshotBase64, onStageChange);
             }
           } catch (providerErr) {
             // Auto-fallback to other provider on 429 / quota errors
@@ -549,9 +551,9 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
                 console.warn(`[Pitchline] ${effectiveProvider} rate-limited, falling back to ${fallback}...`);
                 toast.info(`${effectiveProvider} quota exceeded — retrying with ${fallback}...`);
                 if (fallback === "claude") {
-                  result = await generateClaudeDemo(promptWithSeed, null, [], onStageChange);
+                  result = await generateClaudeDemo(promptWithSeed, null, [], screenshotBase64, onStageChange);
                 } else {
-                  result = await generateGeminiDemo(promptWithSeed, null, [], onStageChange);
+                  result = await generateGeminiDemo(promptWithSeed, null, [], screenshotBase64, onStageChange);
                 }
               } else {
                 throw providerErr; // No fallback key available
@@ -567,6 +569,7 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
               compiledPrompt: prompt.compiled,
               provider: prompt.provider,
               refinements: [],
+              screenshotBase64,
             }
           });
         }
@@ -626,8 +629,10 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
     [state.leads, state.prompts],
   );
 
+
+
   const refineDemo = useCallback<PitchlineContextValue["refineDemo"]>(
-    async (leadId, instruction) => {
+    async (leadId, instruction, screenshotBase64) => {
       const lead = state.leads.find((l) => l.id === leadId);
       const prompt = state.prompts[leadId];
       const existing = state.demos[leadId];
@@ -653,9 +658,9 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
             setState((s) => ({ ...s, generationStage: stage }));
           };
           if (effectiveProvider === "claude") {
-            result = await generateClaudeDemo(prompt.compiled, existing.html, refinements, onStageChange);
+            result = await generateClaudeDemo(prompt.compiled, existing.html, refinements, screenshotBase64, onStageChange);
           } else {
-            result = await generateGeminiDemo(prompt.compiled, existing.html, refinements, onStageChange);
+            result = await generateGeminiDemo(prompt.compiled, existing.html, refinements, screenshotBase64, onStageChange);
           }
         } else {
           console.log("[Pitchline] Running server-side refinement...");
@@ -665,6 +670,7 @@ export function PitchlineProvider({ children }: { children: ReactNode }) {
               provider: prompt.provider,
               refinements,
               currentHtml: existing.html,
+              screenshotBase64,
             }
           });
         }

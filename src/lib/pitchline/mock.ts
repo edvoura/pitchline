@@ -4,7 +4,7 @@ import type { Template } from "./types";
 // Seeded on first boot if the templates table is empty.
 export const STARTER_TEMPLATES: Template[] = [
   {
-    id: "tpl_001",
+    id: "d3b07384-d113-4ec6-a5cc-9c71d601b001",
     name: "Restaurant — Warm / Luxury",
     description: "Appetite-driven, editorial, warm neutrals with rich imagery.",
     mood: "luxury",
@@ -15,7 +15,7 @@ export const STARTER_TEMPLATES: Template[] = [
     sections: ["Hero", "Features", "Social Proof", "CTA", "Closing"],
   },
   {
-    id: "tpl_002",
+    id: "d3b07384-d113-4ec6-a5cc-9c71d601b002",
     name: "SaaS — Minimal / Futuristic",
     description: "Product-forward, high-contrast dark, crisp technical type.",
     mood: "futuristic",
@@ -26,7 +26,7 @@ export const STARTER_TEMPLATES: Template[] = [
     sections: ["Hero", "Features", "Social Proof", "CTA"],
   },
   {
-    id: "tpl_003",
+    id: "d3b07384-d113-4ec6-a5cc-9c71d601b003",
     name: "Home Services — Bold / Trust",
     description: "Direct, conversion-first, strong CTAs and proof.",
     mood: "bold",
@@ -37,7 +37,7 @@ export const STARTER_TEMPLATES: Template[] = [
     sections: ["Hero", "Features", "Social Proof", "CTA", "Closing"],
   },
   {
-    id: "tpl_004",
+    id: "d3b07384-d113-4ec6-a5cc-9c71d601b004",
     name: "Wellness — Calm / Minimal",
     description: "Airy, soft, humanist type with generous whitespace.",
     mood: "minimal",
