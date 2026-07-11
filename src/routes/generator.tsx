@@ -202,6 +202,7 @@ function GeneratorPage() {
   const [provider, setProvider] = useState<Provider>("claude");
   const [compiled, setCompiled] = useState<string>("");
   const [copied, setCopied] = useState(false);
+  const [useCustomPrompt, setUseCustomPrompt] = useState(false);
   const [screenshotBase64, setScreenshotBase64] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [availableSections, setAvailableSections] = useState<string[]>(SECTION_OPTIONS);
