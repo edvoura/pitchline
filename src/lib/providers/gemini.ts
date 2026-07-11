@@ -66,21 +66,22 @@ export async function generateGeminiDemo(
 
   // Single-call system instruction that includes planning guidance inline
   // (avoids double API calls which exhaust rate limits)
-  const baseSystemInstruction = `You are an expert web designer/developer building a single-page website demo.
+  const baseSystemInstruction = `You are an expert web designer/developer building a premium simulated multiple-page website concept.
 
 PLANNING PHASE (do this mentally before writing code):
-1. Decide on sections: Home/Hero, About, Services/Features, Testimonials/Social Proof, Contact/CTA, Footer
-2. Plan the copy outline using Story -> Need -> Answer -> Proof (SNAP framework)
+1. Decide on simulated pages: Home, About Us, Services, Blog, and Contact
+2. Plan the copy outline using Story -> Need -> Answer -> Proof (SNAP framework) for each page/view
 3. Choose a harmonious, consistent color palette — pick ONE dark or rich background color scheme and use it EVERYWHERE (never switch to plain white backgrounds mid-page)
 4. Decide which interactive elements to include (at least 3 of: accordion, mobile-nav toggle, scroll-reveal animations, counter animation, hover card effects)
 
 CRITICAL LAYOUT RULES:
-- Build a SINGLE-PAGE SCROLLING WEBSITE where ALL sections are visible on the page at all times — the user scrolls down through them.
-- NEVER use Alpine.js x-show or x-if to hide/show entire page sections like tabs. Every section must always be in the DOM and visible.
-- Navigation links must be ANCHOR LINKS (href="#home", href="#services", etc.) that smooth-scroll to the corresponding section ID.
-- The first navigation item MUST be "Home" linking to the hero/top section (id="home").
-- Add smooth scrolling behavior: include \`<style>html { scroll-behavior: smooth; }</style>\` in the head.
-- To prevent sandboxed iframe navigation bugs, you MUST include this exact script in the head to intercept all anchor links and handle scrolling locally:
+- MULTIPLE WEB PAGE EXPERIENCE: The website must be designed and built as a premium multiple-page concept simulated inside a single HTML file using an Alpine.js state router (e.g., x-data="{ page: 'home' }").
+- Navigation links must update the page state (e.g., @click.prevent="page = 'about'", @click.prevent="page = 'services'", @click.prevent="page = 'blog'", @click.prevent="page = 'contact'") and show active link styling.
+- Render all page views inside the DOM and use Alpine.js 'x-show' with smooth transitions to show/hide the active page view dynamically.
+- The sticky navigation header and the Footer must remain visible on all pages at all times.
+- Ensure that EACH page view (Home, About Us, Services, Blog, and Contact) is fully and richly populated with high-quality content, cards, forms, and layouts, so that no page view is ever blank, empty, or incomplete when clicked.
+- Add smooth transition animations (like fade-in or slide-up) when switching between pages using Alpine.js and Tailwind transitions.
+- To prevent sandboxed iframe navigation bugs, you MUST include this exact script in the head to intercept all anchor links:
   \`<script>
     document.addEventListener("click", function(e) {
       const a = e.target.closest("a");
@@ -88,11 +89,6 @@ CRITICAL LAYOUT RULES:
         const href = a.getAttribute("href");
         if (href && href.startsWith("#")) {
           e.preventDefault();
-          const targetId = href.substring(1);
-          const targetEl = document.getElementById(targetId || "home");
-          if (targetEl) {
-            targetEl.scrollIntoView({ behavior: "smooth" });
-          }
         }
       }
     });
@@ -102,7 +98,6 @@ BUILDING RULES (follow these strictly):
 - If a BRAND CONTEXT block is present in the prompt, use the exact brand colors as your primary palette (e.g. for backgrounds, accents, buttons), the brand fonts as typography, and the brand logo URL as the header icon/image. These override any generic Mood/Typography/Color direction.
 - Style the page using Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
 - Use Alpine.js via CDN for interactive components (mobile menu toggle, accordion expand/collapse, modal open/close, image carousels/sliders, and scroll-triggered entry/motion animations): <script src="https://unpkg.com/alpinejs" defer></script>
-- MULTIPLE WEB PAGE EXPERIENCE: The website must be designed as a multiple-page concept using an Alpine.js state router (e.g., x-data="{ page: 'home' }"). The navigation links must toggle the active page view (Home, About Us, Services, Contact Us, and Blog) using click handlers (e.g., @click.prevent="page = 'about'"), and apply active styling to the active link. Use Tailwind transitions to animate the page transitions. The footer must remain visible across all pages.
 - BACKGROUND CONSISTENCY: If the hero uses a dark background (e.g. bg-slate-900, bg-gray-900, bg-indigo-950), then ALL sections must use that same dark scheme or closely related dark shades. NEVER suddenly switch to bg-white or a plain white background for any section.
 - Every section must have a unique id attribute matching its nav anchor (e.g. id="home", id="services", id="testimonials", id="contact").
 - Write copy like someone who deeply understands the target audience — never generic marketing speak.
