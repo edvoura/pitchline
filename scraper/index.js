@@ -22,6 +22,7 @@ const REGION_PARAM = process.env.REGION || "all";
 const SECTOR_PARAM = process.env.SECTOR || "all";
 const RAW_QUERY = process.env.QUERY;
 const MAX_PLACES = parseInt(process.env.LIMIT || "15", 10);
+const MAX_QUERIES = parseInt(process.env.MAX_QUERIES || "15", 10);
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("Missing Supabase credentials. Ensure SUPABASE_URL and a valid API key are set.");
@@ -345,12 +346,13 @@ const OSM_TAG_MAP = {
  */
 function buildOverpassQuery(category, location) {
   const tagFilters = OSM_TAG_MAP[category.toLowerCase()];
+  const cleanLoc = location.includes(",") ? location.split(",")[0].trim() : location;
 
   // Fallback: if no tag mapping exists, do a fuzzy name search across all POIs
   if (!tagFilters) {
     console.warn(`[Overpass] No OSM tag mapping for "${category}", falling back to name search`);
     return `[out:json][timeout:30];
-area["name"~"${location}",i]->.searchArea;
+area["name"~"${cleanLoc}",i]->.searchArea;
 (
   node["name"~"${category}",i](area.searchArea);
   way["name"~"${category}",i](area.searchArea);
@@ -365,7 +367,7 @@ out center tags;`;
   ]);
 
   return `[out:json][timeout:30];
-area["name"~"${location}",i]->.searchArea;
+area["name"~"${cleanLoc}",i]->.searchArea;
 (
 ${queryParts.join("\n")}
 );
@@ -656,7 +658,7 @@ async function scrapeSingleQuery(query) {
     return 0;
   }
 
-  runStats.businessesFound = candidates.length;
+  runStats.businessesFound += candidates.length;
 
   // OpenSERP website fallback discovery for website-less leads
   if (OPENSERP_URL) {
@@ -943,7 +945,7 @@ async function run() {
   if (RAW_QUERY) {
     targetQueries = RAW_QUERY.split(",").map((q) => q.trim()).filter(Boolean);
   } else {
-    targetQueries = buildQueryList(REGION_PARAM, SECTOR_PARAM, 15);
+    targetQueries = buildQueryList(REGION_PARAM, SECTOR_PARAM, MAX_QUERIES);
   }
 
   console.log(`\n========================================`);
@@ -959,8 +961,9 @@ async function run() {
 
   console.log(`\n========================================`);
   console.log(`Run summary:`);
-  console.log(`- Query: "${runStats.query}", Location: "${runStats.location}"`);
-  console.log(`- Businesses found: ${runStats.businessesFound}`);
+  console.log(`- Target Region: "${REGION_PARAM}" | Target Sector: "${SECTOR_PARAM}"`);
+  console.log(`- Total Queries Swept: ${targetQueries.length}`);
+  console.log(`- Total Businesses Found: ${runStats.businessesFound}`);
   console.log(`- Leads written (new): ${runStats.leadsWrittenNew}`);
   console.log(`- Leads updated (existing): ${runStats.leadsUpdatedExisting}`);
   console.log(`- Leads skipped (reason: no contact info found): ${runStats.leadsSkippedNoContact}`);

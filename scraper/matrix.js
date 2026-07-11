@@ -81,14 +81,23 @@ export function buildQueryList(region = "all", sector = "all", limit = 15) {
     selectedCities = [region]; // Custom city string
   }
 
-  const queries = [];
+  // Generate ALL possible combinations
+  const allCombinations = [];
   for (const s of selectedSectors) {
     for (const c of selectedCities) {
-      queries.push(`${s} in ${c}`);
-      if (queries.length >= limit) break;
+      allCombinations.push(`${s} in ${c}`);
     }
-    if (queries.length >= limit) break;
   }
 
-  return queries;
+  // Shuffle the combinations to ensure variety across runs when doing a global/broad sweep
+  // Using Fisher-Yates shuffle
+  if (sector === "all" || region === "all") {
+    for (let i = allCombinations.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [allCombinations[i], allCombinations[j]] = [allCombinations[j], allCombinations[i]];
+    }
+  }
+
+  // Slice to the requested limit
+  return allCombinations.slice(0, limit);
 }
