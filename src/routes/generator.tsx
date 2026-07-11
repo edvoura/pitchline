@@ -179,6 +179,7 @@ function GeneratorPage() {
     templates,
     compileFor,
     generateDemo,
+    savePrompt,
   } = usePitchline();
   const navigate = useNavigate();
 
@@ -199,7 +200,7 @@ function GeneratorPage() {
 
   const [dir, setDir] = useState<PromptDirection>(emptyDirection);
   const [provider, setProvider] = useState<Provider>("claude");
-  const [compiled, setCompiled] = useState<string | null>(null);
+  const [compiled, setCompiled] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [screenshotBase64, setScreenshotBase64] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -234,10 +235,11 @@ function GeneratorPage() {
       setCompiled(existing.compiled);
     } else {
       setDir(emptyDirection);
-      setCompiled(null);
+      // Clear when switching to a lead that doesn't have a prompt yet
+      setCompiled("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeLeadId]);
+  }, [activeLeadId, prompts]);
 
   // Auto-compile prompt on direction/provider/lead changes with 400ms debounce
   useEffect(() => {
@@ -278,16 +280,46 @@ function GeneratorPage() {
     }));
   };
 
+  const handleToggleCustomPrompt = async () => {
+    if (!useCustomPrompt && !compiled && lead) {
+      const rec = await compileFor(lead.id, dir, provider);
+      setCompiled(rec.compiled);
+    }
+    setUseCustomPrompt(!useCustomPrompt);
+  };
+
   const doCompile = async () => {
     if (!lead) return;
     const rec = await compileFor(lead.id, dir, provider);
     setCompiled(rec.compiled);
+    setUseCustomPrompt(false);
   };
 
   const doGenerate = async () => {
     if (!lead) return;
-    const rec = await compileFor(lead.id, dir, provider);
-    generateDemo(lead.id, rec, screenshotBase64);
+    let finalPromptText = compiled;
+    if (!finalPromptText) {
+      const rec = await compileFor(lead.id, dir, provider);
+      finalPromptText = rec.compiled;
+    } else {
+      const record = {
+        ...dir,
+        leadId: lead.id,
+        compiled: finalPromptText,
+        provider,
+        updatedAt: new Date().toISOString(),
+      };
+      await savePrompt(record);
+    }
+    const promptRecord = prompts[lead.id] || {
+      ...dir,
+      leadId: lead.id,
+      compiled: finalPromptText,
+      provider,
+      updatedAt: new Date().toISOString(),
+    };
+    const finalRecord = { ...promptRecord, compiled: finalPromptText, provider };
+    generateDemo(lead.id, finalRecord, screenshotBase64);
     navigate({ to: "/preview" });
   };
 
@@ -643,9 +675,20 @@ function GeneratorPage() {
         {/* PREVIEW */}
         <div className="flex flex-col px-6 py-5">
           <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <FileText className="h-4 w-4 text-muted-foreground" />
-              Compiled prompt
+            <div className="flex items-center gap-4 text-sm font-medium">
+              <span className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                Compiled prompt
+              </span>
+              <label className="flex items-center gap-1.5 cursor-pointer text-xs font-normal text-muted-foreground hover:text-foreground">
+                <input
+                  type="checkbox"
+                  checked={useCustomPrompt}
+                  onChange={handleToggleCustomPrompt}
+                  className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
+                />
+                Edit Custom Prompt
+              </label>
             </div>
             <button
               onClick={copy}
@@ -657,9 +700,16 @@ function GeneratorPage() {
             </button>
           </div>
 
-          <div className="min-h-[320px] flex-1 overflow-auto rounded-lg border border-border bg-surface p-4">
-            {compiled ? (
-              <pre className="mono whitespace-pre-wrap text-xs leading-relaxed text-foreground/90 animate-fade-in">
+          <div className="min-h-[320px] flex-1 overflow-hidden rounded-lg border border-border bg-surface p-2">
+            {useCustomPrompt ? (
+              <textarea
+                value={compiled}
+                onChange={(e) => setCompiled(e.target.value)}
+                className="w-full h-full min-h-[300px] p-2 bg-transparent text-xs mono resize-none outline-none leading-relaxed text-foreground/90 border-0 focus:ring-0 focus:outline-none"
+                placeholder="Type or paste your custom website prompt here..."
+              />
+            ) : compiled ? (
+              <pre className="mono whitespace-pre-wrap text-xs leading-relaxed text-foreground/90 animate-fade-in p-2 overflow-auto max-h-[300px]">
                 {compiled}
               </pre>
             ) : (
