@@ -101,7 +101,7 @@ BUILDING RULES (follow these strictly):
 - If a BRAND CONTEXT block is present in the prompt, use the exact brand colors as your primary palette (e.g. for backgrounds, accents, buttons), the brand fonts as typography, and the brand logo URL as the header icon/image. These override any generic Mood/Typography/Color direction.
 - Style the page using Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
 - Use Alpine.js via CDN for interactive components (mobile menu toggle, accordion expand/collapse, modal open/close, image carousels/sliders, and scroll-triggered entry/motion animations): <script src="https://unpkg.com/alpinejs" defer></script>
-- DO NOT use Alpine.js to control page section visibility. Sections must always be rendered and visible.
+- MULTIPLE WEB PAGE EXPERIENCE: The website must be designed as a multiple-page concept using an Alpine.js state router (e.g., x-data="{ page: 'home' }"). The navigation links must toggle the active page view (Home, About Us, Services, Contact Us, and Blog) using click handlers (e.g., @click.prevent="page = 'about'"), and apply active styling to the active link. Use Tailwind transitions to animate the page transitions. The footer must remain visible across all pages.
 - BACKGROUND CONSISTENCY: If the hero uses a dark background (e.g. bg-slate-900, bg-gray-900, bg-indigo-950), then ALL sections must use that same dark scheme or closely related dark shades. NEVER suddenly switch to bg-white or a plain white background for any section.
 - Every section must have a unique id attribute matching its nav anchor (e.g. id="home", id="services", id="testimonials", id="contact").
 - Write copy like someone who deeply understands the target audience — never generic marketing speak.
@@ -109,9 +109,9 @@ BUILDING RULES (follow these strictly):
   1. Spacing rhythm, visual hierarchy, and contrast must be premium and obvious at a glance.
   2. Never produce a flat static page with no motion — add hover transitions on buttons/cards, smooth scroll behavior, and scroll-triggered entry animations (using Tailwind transitions or simple custom styles).
   3. Include tasteful micro-interactions (e.g. interactive accordion, animated stats counter, interactive dropdowns) using Alpine.js and Tailwind transitions.
-  4. HERO SECTION IMAGE & PARALLAX:
+  4. HERO & MULTIPLE PARALLAX SECTIONS:
      - The hero section (#home) MUST feature a large, high-quality, professional background image using one of the provided AVAILABLE IMAGES.
-     - It MUST have a PARALLAX scrolling effect. To do this, style the hero background container with standard parallax CSS properties: 'background-attachment: fixed; background-size: cover; background-position: center; background-repeat: no-repeat;'. Add a media query to fallback to 'background-attachment: scroll;' on mobile/tablet screens (max-width: 1024px) to keep it responsive and performant.
+     - Intelligently include background images with a PARALLAX scrolling effect on multiple key sections of the website (such as the Hero section, divider banners, and contact headers) using 'background-attachment: fixed; background-size: cover; background-position: center; background-repeat: no-repeat;'. Add a media query to fallback to 'background-attachment: scroll;' on mobile/tablet screens (max-width: 1024px) to keep it responsive and performant.
      - The hero text, headers, and buttons MUST be placed inside an overlaid text box with glassmorphism or a semi-transparent dark backdrop overlay (e.g., Tailwind \`bg-black/50 backdrop-blur-md\` or \`bg-slate-900/60 p-8 rounded-2xl\`) so that all text has excellent, accessible contrast against the background image.
      - NEVER use a plain colored background (like solid bg-slate-900) for the hero if AVAILABLE IMAGES are present.
 - FOOTER (#footer) is 100% REQUIRED on every single generation:

@@ -50,21 +50,26 @@ export function compilePrompt(lead: Lead, d: PromptDirection, images: string[] =
   const sections = sectionsList.join(", ");
   const ctaFocus = d.ctaFocus || "Book / Contact";
 
-  const goal = `Create a high-converting digital presence concept (either a full-desktop landing page or a beautiful mobile web app concept enclosed in an elegant smartphone mockup device frame if appropriate for this business) for a ${lead.industry} business located in ${lead.location}, optimizing for the primary action: "${ctaFocus}".`;
+  const goal = `Create a high-converting digital presence concept designed as a MULTIPLE-PAGE web application (simulated in a single HTML file using Alpine.js state-based routing: e.g., x-data="{ page: 'home' }") for a ${lead.industry} business located in ${lead.location}, optimizing for the primary action: "${ctaFocus}".`;
 
   const heroStyleInstruction = heroStyle === "carousel"
     ? `HERO STYLE: carousel. You MUST build an Alpine.js-powered image carousel using 2-3 of the supplied AVAILABLE IMAGES, with clear previous/next chevron buttons, indicators, and automatic slide rotation (auto-rotate). Each slide must display the image as a background with a text overlay container.`
-    : `HERO STYLE: static. The Hero section MUST feature a large, high-quality background image using one of the AVAILABLE IMAGES, with a parallax scrolling effect (using background-attachment: fixed). The text inside the Hero section MUST be styled inside an overlaid glassmorphic card (with blur backdrop) to guarantee readability and high contrast.`;
+    : `HERO STYLE: static. The Hero section MUST feature a large, high-quality background image using one of the AVAILABLE IMAGES, with a parallax scrolling effect (using 'background-attachment: fixed'). The text inside the Hero section MUST be styled inside an overlaid glassmorphic card (with blur backdrop) to guarantee readability and high contrast.`;
 
   const sectionRules = `
-REQUIRED SECTIONS SPECIFICATIONS (build as a single-page HTML file with nav anchors):
-- Sticky/fixed navigation bar with links pointing to #home, #about, #services, #contact (and #blog if appropriate for this industry), supporting smooth scroll behavior.
-- Home / Hero (#home): Featuring the business name, hook (from SNAP Story/Need), primary CTA, and a background/hero image layout matching the requested HERO STYLE.
-- About (#about): Story of credibility, based on SNAP copy Story.
-- Services / Features (#services): Outcome-framed list of what the business does (reframe features around customer benefits).
-- Blog / Insights (#blog): Optional (only if appropriate for this industry e.g. consultancy, creative agency. Do NOT include for a dentist or local medical clinic). Show 2-3 preview post cards.
-- Contact (#contact): Details, custom form, phone/WhatsApp CTA (preferred channel: ${lead.preferredChannel || 'email'}).
-- Footer (#footer): A rich, high-quality, professional agency footer with columns for brand/tagline, navigation quick links, contact info, and legal copyright/attributions.
+REQUIRED SECTIONS & MULTIPLE PAGE RULES (build as a self-contained multi-page application via Alpine.js):
+- The page must use a top-level Alpine.js router (e.g. x-data="{ page: 'home' }") to toggle between different page views: 'home', 'about', 'services', 'contact', and 'blog' (if appropriate).
+- Navigation links must trigger page state changes (e.g. @click.prevent="page = 'about'") and show active link styling, with smooth transition animations between page changes.
+- Sticky/fixed navigation bar and the Footer must remain visible on all pages.
+- Home Page (when page === 'home'):
+  • Hero (#home): Featuring the business name, hook, primary CTA, and a parallax background image matching the requested HERO STYLE.
+  • Services Summary & Social Proof.
+- About Us Page (when page === 'about'): Detailed story of credibility and background.
+- Services Page (when page === 'services'): Detailed, outcome-framed list of what the business does.
+- Blog Page (when page === 'blog'): Optional (only if appropriate for this industry). Show 2-3 preview post cards.
+- Contact Page (when page === 'contact'): Details, custom form, phone/WhatsApp CTA (preferred channel: ${lead.preferredChannel || 'email'}).
+- Footer (#footer): A rich, high-quality, professional 4-column footer containing brand tagline, navigation quick links, contact info, photo attributions, and a subtle "Built by Trendtactics Digital" signature.
+- MULTIPLE PARALLAX SECTIONS: Intelligently include large background images with a parallax scrolling effect (using 'background-attachment: fixed; background-size: cover; background-position: center; background-repeat: no-repeat;') on multiple key sections (such as the Hero, page headers, or CTA divider banners) using distinct images from the AVAILABLE IMAGES list to create visual depth as the user scrolls.
 `;
 
   const imagesBlock = images.length > 0
